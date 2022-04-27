@@ -6,9 +6,6 @@ CustomController::CustomController(RobotData &rd) : rd_(rd) //, wbc_(dc.wbc_)
 {
     ControlVal_.setZero();
 
-    // writeFile.open("/home/kim/tocabi_ws/src/tocabi_cc/result/data.csv", std::ofstream::out | std::ofstream::app);
-    // writeFile << std::fixed << std::setprecision(8);
-
     loadNetwork();
 }
 
@@ -24,12 +21,18 @@ void CustomController::loadNetwork()
 
     string cur_path = "/home/kim/tocabi_ws/src/tocabi_cc/weight/";
     std::ifstream file[8];
-    file[0].open(cur_path+"mlp_extractor_policy_net_0_weight.txt", std::ios::in);
-    file[1].open(cur_path+"mlp_extractor_policy_net_0_bias.txt", std::ios::in);
-    file[2].open(cur_path+"mlp_extractor_policy_net_2_weight.txt", std::ios::in);
-    file[3].open(cur_path+"mlp_extractor_policy_net_2_bias.txt", std::ios::in);
-    file[4].open(cur_path+"action_net_weight.txt", std::ios::in);
-    file[5].open(cur_path+"action_net_bias.txt", std::ios::in);
+    // file[0].open(cur_path+"mlp_extractor_policy_net_0_weight.txt", std::ios::in);
+    // file[1].open(cur_path+"mlp_extractor_policy_net_0_bias.txt", std::ios::in);
+    // file[2].open(cur_path+"mlp_extractor_policy_net_2_weight.txt", std::ios::in);
+    // file[3].open(cur_path+"mlp_extractor_policy_net_2_bias.txt", std::ios::in);
+    // file[4].open(cur_path+"action_net_weight.txt", std::ios::in);
+    // file[5].open(cur_path+"action_net_bias.txt", std::ios::in);
+    file[0].open(cur_path+"actor_mlp_0_weight.txt", std::ios::in);
+    file[1].open(cur_path+"actor_mlp_0_bias.txt", std::ios::in);
+    file[2].open(cur_path+"actor_mlp_2_weight.txt", std::ios::in);
+    file[3].open(cur_path+"actor_mlp_2_bias.txt", std::ios::in);
+    file[4].open(cur_path+"mu_weight.txt", std::ios::in);
+    file[5].open(cur_path+"mu_bias.txt", std::ios::in);
     file[6].open(cur_path+"obs_mean.txt", std::ios::in);
     file[7].open(cur_path+"obs_variance.txt", std::ios::in);
 
@@ -38,7 +41,7 @@ void CustomController::loadNetwork()
         std::cout<<"Can not find the weight file"<<std::endl;
     }
 
-    float temp;
+    double temp;
     int row = 0;
     int col = 0;
 
@@ -194,7 +197,8 @@ void CustomController::feedforwardPolicy()
 {
     for (int i = 0; i <num_state; i++)
     {
-        state_(i) = (state_(i) - state_mean_(i)) / sqrt(state_var_(i) + 1.0e-08);
+        state_(i) = (state_(i) - state_mean_(i)) / sqrt(state_var_(i) + 1.0e-05);
+        state_(i) = DyrosMath::minmax_cut(state_(i), -5.0, 5.0);
     }
     
     hidden_layer1_ = policy_net_w0_ * state_ + policy_net_b0_;
@@ -217,7 +221,6 @@ void CustomController::feedforwardPolicy()
     {
         rl_action_(i) = DyrosMath::minmax_cut(rl_action_(i), -300., 300.);
     }
-    
 }
 
 void CustomController::computeSlow()
@@ -232,15 +235,13 @@ void CustomController::computeSlow()
             rd_.tc_init = false;
             std::cout<<"cc mode 11"<<std::endl;
 
-        } 
+            //rd_.link_[COM_id].x_desired = rd_.link_[COM_id].x_init;
+        }
 
-        // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
         processObservation();
         feedforwardPolicy();
 
         rd_.torque_desired = rl_action_.cast <double> ();
-
-        // writeFile << rd_.torque_desired.transpose() << std::endl;
     }
 }
 
