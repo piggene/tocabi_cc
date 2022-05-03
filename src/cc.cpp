@@ -175,7 +175,9 @@ void CustomController::loadNetwork()
 
 void CustomController::processObservation()
 {
-    int data_idx = 0;
+    state_.block<206,1>(0,0) = state_.block<206,1>(103,0);
+
+    int data_idx = 206;
 
     state_(data_idx) = rd_.q_virtual_(MODEL_DOF_QVIRTUAL-1);
     data_idx++;
@@ -189,6 +191,12 @@ void CustomController::processObservation()
     for (int i = 6; i < MODEL_DOF_VIRTUAL; i++)
     {
         state_(data_idx) = rd_.q_dot_virtual_(i);
+        data_idx++;
+    }
+
+    for (int i = 0; i < MODEL_DOF; i++)
+    {
+        state_(data_idx) = rl_action_(i);
         data_idx++;
     }
 }
