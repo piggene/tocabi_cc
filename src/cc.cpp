@@ -6,9 +6,16 @@ CustomController::CustomController(RobotData &rd) : rd_(rd) //, wbc_(dc.wbc_)
 {
     ControlVal_.setZero();
 
-    if (is_on_robot_ && is_write_file_)
+    if (is_write_file_)
     {
-        writeFile.open("/home/dyros/catkin_ws/src/tocabi_cc/result/data.csv", std::ofstream::out | std::ofstream::app);
+        if (is_on_robot_)
+        {
+            writeFile.open("/home/dyros/catkin_ws/src/tocabi_cc/result/data.csv", std::ofstream::out | std::ofstream::app);
+        }
+        else
+        {
+            writeFile.open("/home/kim/tocabi_ws/src/tocabi_cc/result/data.csv", std::ofstream::out | std::ofstream::app);
+        }
         writeFile << std::fixed << std::setprecision(8);
     }
     initVariable();
@@ -197,6 +204,14 @@ void CustomController::initVariable()
     q_dot_lpf_.setZero();
     euler_angle_lpf_.setZero();
     q_lpf_ = rd_.q_virtual_.segment(6,MODEL_DOF);
+    // q_noise_ = q_noise_pre_ = rd_.q_virtual_.segment(6,MODEL_DOF);
+    q_noise_ << 0.0, 0.0, -0.24, 0.6, -0.36, 0.0,
+                                0.0, 0.0, -0.24, 0.6, -0.36, 0.0,
+                                0.0, 0.0, 0.0,
+                                0.3, 0.3, 1.5, -1.27, -1.0, 0.0, -1.0, 0.0,
+                                0.0, 0.0,
+                                -0.3, -0.3, -1.5, 1.27, 1.0, 0.0, 1.0, 0.0;
+    q_noise_pre_ = q_noise_;
 
     torque_bound_ << 333, 232, 263, 289, 222, 166,
                     333, 232, 263, 289, 222, 166,
@@ -209,6 +224,15 @@ void CustomController::initVariable()
 
 void CustomController::processObservation()
 {
+    std::random_device rd;  
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(-0.00001, 0.00001);
+    for (int i = 0; i < MODEL_DOF; i++) {
+        q_noise_(i) = rd_.q_virtual_(6+i) + dis(gen);
+    }
+    q_vel_noise_ = (q_noise_ - q_noise_pre_) * 2000.0;
+    q_noise_pre_ = q_noise_;
+
     int data_idx = 0;
 
     Eigen::Quaterniond q;
@@ -226,8 +250,8 @@ void CustomController::processObservation()
     state_(data_idx) = euler_angle_lpf_(1);
     data_idx++;
 
-
     q_lpf_ = rd_.q_virtual_.segment(6,MODEL_DOF); //DyrosMath::lpf<MODEL_DOF>(rd_.q_virtual_.segment(6,MODEL_DOF), q_lpf_, 2000, 10.0);
+
     // q_lpf_(23) = 0.0;
     // q_lpf_(24) = 0.0;
     // q_lpf_(22) = 0.0;
@@ -239,12 +263,11 @@ void CustomController::processObservation()
         data_idx++;
     }
 
-    q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(rd_.q_dot_virtual_.segment(6,MODEL_DOF), q_dot_lpf_, 2000, 4.0);
+    q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000, 4.0);
     // q_dot_lpf_(23) = 0.0;
     // q_dot_lpf_(24) = 0.0;
     // q_dot_lpf_(22) = 0.0;
     // q_dot_lpf_(32) = 0.0;
-
     for (int i = 0; i < MODEL_DOF; i++)
     {
         if (is_on_robot_)
@@ -253,7 +276,7 @@ void CustomController::processObservation()
         }
         else
         {
-            state_(data_idx) = rd_.q_dot_virtual_(i+6);
+            state_(data_idx) =  q_dot_lpf_(i); //rd_.q_dot_virtual_(i+6); q_vel_noise_(i);
         }
         data_idx++;
     }
@@ -295,7 +318,7 @@ void CustomController::feedforwardPolicy()
         rl_action_(i) = DyrosMath::minmax_cut(rl_action_(i), -torque_bound_(i), torque_bound_(i));
     }
 
-    rl_action_lpf_ = rl_action_;//DyrosMath::lpf<MODEL_DOF>(rl_action_.cast <double> (), rl_action_lpf_, 2000, 10.0);
+    rl_action_lpf_ = rl_action_; //DyrosMath::lpf<MODEL_DOF>(rl_action_, rl_action_lpf_, 2000, 10.0);
     // rl_action_lpf_(23) = 0.0;
     // rl_action_lpf_(24) = 0.0;
     // rl_action_lpf_(22) = 0.0;
@@ -338,8 +361,8 @@ void CustomController::computeSlow()
         {
             rd_.torque_desired = rl_action_lpf_;
         }
-
-        if (is_on_robot_ && is_write_file_)
+        
+        if (is_write_file_)
         {
             if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/250)
             {
@@ -349,6 +372,7 @@ void CustomController::computeSlow()
                 writeFile << q_lpf_.transpose() << "\t";
                 writeFile << rd_.q_dot_virtual_.segment(6,MODEL_DOF).transpose() << "\t";
                 writeFile << q_dot_lpf_.transpose() << "\t";
+                writeFile << q_vel_noise_.transpose() << "\t";
                 writeFile << rd_.torque_desired.transpose() << std::endl;
 
                 time_inference_pre_ = rd_.control_time_us_;
