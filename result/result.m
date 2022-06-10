@@ -36,3 +36,9 @@ for i=1:33
     plot(d3(:,1),d3(:,73+i))
     plot(d3(:,1),d3(:,106+i))
 end
+
+for i=1:33
+subplot(6,6,i);
+plot(d3(:,1),d3(:,139+i))
+hold on
+end
