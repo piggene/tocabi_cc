@@ -263,7 +263,7 @@ void CustomController::processObservation()
         data_idx++;
     }
 
-    q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000, 10.0);
+    q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000, 1.0);
     // q_dot_lpf_(23) = 0.0;
     // q_dot_lpf_(24) = 0.0;
     // q_dot_lpf_(22) = 0.0;
