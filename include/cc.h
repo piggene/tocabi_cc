@@ -26,7 +26,7 @@ public:
 
     void loadMocapData();
 
-    static const int num_state = 68;
+    static const int num_state = 101;
     static const int num_hidden = 256;
     static const int num_action = 33;
 
