@@ -20,6 +20,7 @@ CustomController::CustomController(RobotData &rd) : rd_(rd) //, wbc_(dc.wbc_)
     }
     initVariable();
     loadNetwork();
+    loadMocapData();
 }
 
 Eigen::VectorQd CustomController::getControl()
@@ -185,6 +186,42 @@ void CustomController::loadNetwork()
     }
 }
 
+void CustomController::loadMocapData()
+{
+    string cur_path = "/home/kim/tocabi_ws/src/tocabi_cc/motion/";
+
+    if (is_on_robot_)
+    {
+        cur_path = "/home/dyros/catkin_ws/src/tocabi_cc/motion/";
+    }
+    std::ifstream file;
+    file.open(cur_path+"processed_data_tocabi_squat.txt", std::ios::in);
+
+    if(!file.is_open())
+    {
+        std::cout<<"Can not find the mocap file"<<std::endl;
+    }
+
+    float temp;
+    int row = 0;
+    int col = 0;
+
+    while(!file.eof() && row != mocap_data_.rows())
+    {
+        file >> temp;
+        if(temp != '\n')
+        {
+            mocap_data_(row, col) = temp;
+            col ++;
+            if (col == mocap_data_.cols())
+            {
+                col = 0;
+                row ++;
+            }
+        }
+    }
+}
+
 void CustomController::initVariable()
 {    
     policy_net_w0_.resize(num_hidden, num_state);
@@ -218,7 +255,9 @@ void CustomController::initVariable()
                     303, 303, 303, 
                     64, 64, 64, 64, 23, 23, 10, 10,
                     10, 10,
-                    64, 64, 64, 64, 23, 23, 10, 10;               
+                    64, 64, 64, 64, 23, 23, 10, 10;      
+
+    mocap_data_.resize(321, 34);
 
 }
 
@@ -250,6 +289,18 @@ void CustomController::processObservation()
     state_(data_idx) = euler_angle_lpf_(1);
     data_idx++;
 
+    double mocap_cycle_dt = mocap_data_(1,0)-mocap_data_(0,0);
+    int mocap_data_num = mocap_data_.rows()-1;
+    double mocap_cycle_period = (mocap_data_.rows()-1) * mocap_cycle_dt;
+
+    double local_time = std::fmod(((rd_.control_time_us_-start_time_)/1e6), mocap_cycle_period);
+    int mocap_data_idx = std::fmod(int(local_time / mocap_cycle_dt), mocap_data_num);
+    int next_idx = mocap_data_idx + 1; 
+
+    for (int i = 0; i < MODEL_DOF; i++)
+    {
+        q_target_(i) = DyrosMath::cubic(local_time, mocap_data_(mocap_data_idx,0), mocap_data_(next_idx,0), mocap_data_(mocap_data_idx,i+1), mocap_data_(next_idx,i+1), 0.0, 0.0);
+    }
     q_lpf_ = rd_.q_virtual_.segment(6,MODEL_DOF); //DyrosMath::lpf<MODEL_DOF>(rd_.q_virtual_.segment(6,MODEL_DOF), q_lpf_, 2000, 10.0);
 
     // q_lpf_(23) = 0.0;
@@ -259,7 +310,7 @@ void CustomController::processObservation()
 
     for (int i = 0; i < MODEL_DOF; i++)
     {
-        state_(data_idx) = q_lpf_(i);
+        state_(data_idx) = q_target_(i) - q_lpf_(i);
         data_idx++;
     }
 
@@ -281,12 +332,12 @@ void CustomController::processObservation()
         data_idx++;
     }
 
-    float squat_duration = 8.0;
-    float phase = std::fmod((rd_.control_time_us_-start_time_)/1e6, squat_duration) / squat_duration;
-    state_(data_idx) = sin(2*M_PI*phase);
-    data_idx++;
-    state_(data_idx) = cos(2*M_PI*phase);
-    data_idx++;
+    // float squat_duration = 8.0;
+    // float phase = std::fmod((rd_.control_time_us_-start_time_)/1e6, squat_duration) / squat_duration;
+    // state_(data_idx) = sin(2*M_PI*phase);
+    // data_idx++;
+    // state_(data_idx) = cos(2*M_PI*phase);
+    // data_idx++;
 }
 
 void CustomController::feedforwardPolicy()

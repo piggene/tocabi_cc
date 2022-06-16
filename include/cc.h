@@ -24,7 +24,9 @@ public:
     void feedforwardPolicy();
     void initVariable();
 
-    static const int num_state = 70;
+    void loadMocapData();
+
+    static const int num_state = 68;
     static const int num_hidden = 256;
     static const int num_action = 33;
 
@@ -42,6 +44,8 @@ public:
     Eigen::MatrixXd state_mean_;
     Eigen::MatrixXd state_var_;
 
+    Eigen::MatrixXd mocap_data_;
+
     std::ofstream writeFile;
 
     bool is_on_robot_ = false;
@@ -54,6 +58,9 @@ public:
     Eigen::Matrix<double, MODEL_DOF, 1> q_noise_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_noise_pre_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_vel_noise_;
+
+    Eigen::Matrix<double, MODEL_DOF, 1> q_target_;
+    Eigen::Matrix<double, MODEL_DOF, 1> q_error_;
 
     Eigen::Matrix<double, MODEL_DOF, 1> torque_init_;
     Eigen::Matrix<double, MODEL_DOF, 1> torque_spline_;
