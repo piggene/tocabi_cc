@@ -24,9 +24,7 @@ public:
     void feedforwardPolicy();
     void initVariable();
 
-    void loadMocapData();
-
-    static const int num_state = 101;
+    static const int num_state = 70;
     static const int num_hidden = 256;
     static const int num_action = 33;
 
@@ -44,27 +42,27 @@ public:
     Eigen::MatrixXd state_mean_;
     Eigen::MatrixXd state_var_;
 
-    Eigen::MatrixXd mocap_data_;
-
     std::ofstream writeFile;
 
     bool is_on_robot_ = false;
-    bool is_write_file_ = true;
+    bool is_write_file_ = false;
     Eigen::Matrix<double, MODEL_DOF, 1> q_lpf_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_dot_lpf_;
     Eigen::Matrix<double, MODEL_DOF, 1> rl_action_lpf_;
     Eigen::Matrix<double, 3, 1> euler_angle_lpf_;
 
+    Eigen::Matrix<double, MODEL_DOF, 1> q_init_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_noise_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_noise_pre_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_vel_noise_;
 
-    Eigen::Matrix<double, MODEL_DOF, 1> q_target_;
-    Eigen::Matrix<double, MODEL_DOF, 1> q_error_;
-
     Eigen::Matrix<double, MODEL_DOF, 1> torque_init_;
     Eigen::Matrix<double, MODEL_DOF, 1> torque_spline_;
+    Eigen::Matrix<double, MODEL_DOF, 1> torque_rl_;
     Eigen::Matrix<double, MODEL_DOF, 1> torque_bound_;
+
+    Eigen::Matrix<double, MODEL_DOF, MODEL_DOF> Kp_;
+    Eigen::Matrix<double, MODEL_DOF, MODEL_DOF> Kv_;
 
     float start_time_;
     float time_inference_pre_;

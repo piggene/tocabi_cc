@@ -20,7 +20,6 @@ CustomController::CustomController(RobotData &rd) : rd_(rd) //, wbc_(dc.wbc_)
     }
     initVariable();
     loadNetwork();
-    loadMocapData();
 }
 
 Eigen::VectorQd CustomController::getControl()
@@ -186,42 +185,6 @@ void CustomController::loadNetwork()
     }
 }
 
-void CustomController::loadMocapData()
-{
-    string cur_path = "/home/kim/tocabi_ws/src/tocabi_cc/motion/";
-
-    if (is_on_robot_)
-    {
-        cur_path = "/home/dyros/catkin_ws/src/tocabi_cc/motion/";
-    }
-    std::ifstream file;
-    file.open(cur_path+"processed_data_tocabi_squat.txt", std::ios::in);
-
-    if(!file.is_open())
-    {
-        std::cout<<"Can not find the mocap file"<<std::endl;
-    }
-
-    float temp;
-    int row = 0;
-    int col = 0;
-
-    while(!file.eof() && row != mocap_data_.rows())
-    {
-        file >> temp;
-        if(temp != '\n')
-        {
-            mocap_data_(row, col) = temp;
-            col ++;
-            if (col == mocap_data_.cols())
-            {
-                col = 0;
-                row ++;
-            }
-        }
-    }
-}
-
 void CustomController::initVariable()
 {    
     policy_net_w0_.resize(num_hidden, num_state);
@@ -242,36 +205,39 @@ void CustomController::initVariable()
     euler_angle_lpf_.setZero();
     q_lpf_ = rd_.q_virtual_.segment(6,MODEL_DOF);
     // q_noise_ = q_noise_pre_ = rd_.q_virtual_.segment(6,MODEL_DOF);
-    q_noise_ << 0.0, 0.0, -0.24, 0.6, -0.36, 0.0,
-                                0.0, 0.0, -0.24, 0.6, -0.36, 0.0,
-                                0.0, 0.0, 0.0,
-                                0.3, 0.3, 1.5, -1.27, -1.0, 0.0, -1.0, 0.0,
-                                0.0, 0.0,
-                                -0.3, -0.3, -1.5, 1.27, 1.0, 0.0, 1.0, 0.0;
-    q_noise_pre_ = q_noise_;
+    q_init_ << 0.0, 0.0, -0.24, 0.6, -0.36, 0.0,
+                0.0, 0.0, -0.24, 0.6, -0.36, 0.0,
+                0.0, 0.0, 0.0,
+                0.3, 0.3, 1.5, -1.27, -1.0, 0.0, -1.0, 0.0,
+                0.0, 0.0,
+                -0.3, -0.3, -1.5, 1.27, 1.0, 0.0, 1.0, 0.0;
+    q_noise_pre_ = q_noise_ = q_init_;
 
     torque_bound_ << 333, 232, 263, 289, 222, 166,
                     333, 232, 263, 289, 222, 166,
                     303, 303, 303, 
                     64, 64, 64, 64, 23, 23, 10, 10,
                     10, 10,
-                    64, 64, 64, 64, 23, 23, 10, 10;      
+                    64, 64, 64, 64, 23, 23, 10, 10;  
 
-    mocap_data_.resize(321, 34);
-
+    Kp_.setZero();
+    Kv_.setZero();
+    Kp_.diagonal() << 2000.0/ 2.0, 5000.0/ 2.0, 4000.0/ 2.0, 3700.0/ 2.0, 3200.0/ 2.0, 3200.0/ 2.0,
+                        2000.0/ 2.0, 5000.0/ 2.0, 4000.0/ 2.0, 3700.0/ 2.0, 3200.0/ 2.0, 3200.0/ 2.0,
+                        6000.0/ 2.0, 10000.0/ 2.0, 10000.0/ 2.0,
+                        400.0/ 2.0, 1000.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 100.0/ 2.0, 100.0/ 2.0,
+                        100.0/ 2.0, 100.0/ 2.0,
+                        400.0/ 2.0, 1000.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 100.0/ 2.0, 100.0/ 2.0;
+    Kv_.diagonal() << 15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
+                        15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
+                        200.0, 100.0, 100.0,
+                        10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0,
+                        2.0, 2.0,
+                        10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0;
 }
 
 void CustomController::processObservation()
 {
-    std::random_device rd;  
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(-0.00001, 0.00001);
-    for (int i = 0; i < MODEL_DOF; i++) {
-        q_noise_(i) = rd_.q_virtual_(6+i) + dis(gen);
-    }
-    q_vel_noise_ = (q_noise_ - q_noise_pre_) * 2000.0;
-    q_noise_pre_ = q_noise_;
-
     int data_idx = 0;
 
     Eigen::Quaterniond q;
@@ -289,18 +255,6 @@ void CustomController::processObservation()
     state_(data_idx) = euler_angle_lpf_(1);
     data_idx++;
 
-    double mocap_cycle_dt = mocap_data_(1,0)-mocap_data_(0,0);
-    int mocap_data_num = mocap_data_.rows()-1;
-    double mocap_cycle_period = (mocap_data_.rows()-1) * mocap_cycle_dt;
-
-    double local_time = std::fmod(((rd_.control_time_us_-start_time_)/1e6), mocap_cycle_period);
-    int mocap_data_idx = std::fmod(int(local_time / mocap_cycle_dt), mocap_data_num);
-    int next_idx = mocap_data_idx + 1; 
-
-    for (int i = 0; i < MODEL_DOF; i++)
-    {
-        q_target_(i) = DyrosMath::cubic(local_time, mocap_data_(mocap_data_idx,0), mocap_data_(next_idx,0), mocap_data_(mocap_data_idx,i+1), mocap_data_(next_idx,i+1), 0.0, 0.0);
-    }
     q_lpf_ = rd_.q_virtual_.segment(6,MODEL_DOF); //DyrosMath::lpf<MODEL_DOF>(rd_.q_virtual_.segment(6,MODEL_DOF), q_lpf_, 2000, 10.0);
 
     // q_lpf_(23) = 0.0;
@@ -310,17 +264,10 @@ void CustomController::processObservation()
 
     for (int i = 0; i < MODEL_DOF; i++)
     {
-        state_(data_idx) = q_target_(i) - q_lpf_(i);
-        data_idx++;
-    }
-
-    for (int i = 0; i < MODEL_DOF; i++)
-    {
         state_(data_idx) = q_lpf_(i);
         data_idx++;
     }
 
-    q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000, 1.0);
     // q_dot_lpf_(23) = 0.0;
     // q_dot_lpf_(24) = 0.0;
     // q_dot_lpf_(22) = 0.0;
@@ -338,12 +285,12 @@ void CustomController::processObservation()
         data_idx++;
     }
 
-    // float squat_duration = 8.0;
-    // float phase = std::fmod((rd_.control_time_us_-start_time_)/1e6, squat_duration) / squat_duration;
-    // state_(data_idx) = sin(2*M_PI*phase);
-    // data_idx++;
-    // state_(data_idx) = cos(2*M_PI*phase);
-    // data_idx++;
+    float squat_duration = 8.0;
+    float phase = std::fmod((rd_.control_time_us_-start_time_)/1e6, squat_duration) / squat_duration;
+    state_(data_idx) = sin(2*M_PI*phase);
+    data_idx++;
+    state_(data_idx) = cos(2*M_PI*phase);
+    data_idx++;
 }
 
 void CustomController::feedforwardPolicy()
@@ -369,17 +316,6 @@ void CustomController::feedforwardPolicy()
     }
 
     rl_action_ = action_net_w_ * hidden_layer2_ + action_net_b_;
-
-    for (int i = 0; i < MODEL_DOF; i++)
-    {
-        rl_action_(i) = DyrosMath::minmax_cut(rl_action_(i), -torque_bound_(i), torque_bound_(i));
-    }
-
-    rl_action_lpf_ = rl_action_; //DyrosMath::lpf<MODEL_DOF>(rl_action_, rl_action_lpf_, 2000, 10.0);
-    // rl_action_lpf_(23) = 0.0;
-    // rl_action_lpf_(24) = 0.0;
-    // rl_action_lpf_(22) = 0.0;
-    // rl_action_lpf_(32) = 0.0;
     
 }
 
@@ -398,25 +334,42 @@ void CustomController::computeSlow()
             torque_init_ = rd_.torque_desired;
         } 
 
+        std::random_device rd;  
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dis(-0.00001, 0.00001);
+        for (int i = 0; i < MODEL_DOF; i++) {
+            q_noise_(i) = rd_.q_virtual_(6+i) + dis(gen);
+        }
+        q_vel_noise_ = (q_noise_ - q_noise_pre_) * 2000.0;
+        q_noise_pre_ = q_noise_;
+        q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000.0, 1.0);
+        
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
-        // if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/250)
-        // {
+        if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/50.0)
+        {
             processObservation();
             feedforwardPolicy();
-        //     time_inference_pre_ = rd_.control_time_us_;
-        // }
+            time_inference_pre_ = rd_.control_time_us_;
+        }
 
+
+        for (int i = 0; i < MODEL_DOF; i++)
+        {
+            torque_rl_(i) = Kp_(i,i) * (rl_action_(i)*3.14/180.0 + q_init_(i) - q_noise_(i)) - Kv_(i,i) * q_vel_noise_(i);
+            torque_rl_(i) = DyrosMath::minmax_cut(torque_rl_(i), -torque_bound_(i), torque_bound_(i));
+        }
+        
         if (rd_.control_time_us_ < start_time_ + 1e6)
         {
             for (int i = 0; i <MODEL_DOF; i++)
             {
-                torque_spline_(i) = DyrosMath::cubic(rd_.control_time_us_, start_time_, start_time_ + 1e6, torque_init_(i), rl_action_lpf_(i), 0.0, 0.0);
+                torque_spline_(i) = DyrosMath::cubic(rd_.control_time_us_, start_time_, start_time_ + 1e6, torque_init_(i), torque_rl_(i), 0.0, 0.0);
             }
             rd_.torque_desired = torque_spline_;
         }
         else
         {
-            rd_.torque_desired = rl_action_lpf_;
+            rd_.torque_desired = torque_rl_;
         }
         
         if (is_write_file_)
