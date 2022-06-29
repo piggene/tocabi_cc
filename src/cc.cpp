@@ -222,18 +222,33 @@ void CustomController::initVariable()
 
     Kp_.setZero();
     Kv_.setZero();
-    Kp_.diagonal() << 2000.0/ 2.0, 5000.0/ 2.0, 4000.0/ 2.0, 3700.0/ 2.0, 3200.0/ 2.0, 3200.0/ 2.0,
-                        2000.0/ 2.0, 5000.0/ 2.0, 4000.0/ 2.0, 3700.0/ 2.0, 3200.0/ 2.0, 3200.0/ 2.0,
-                        6000.0/ 2.0, 10000.0/ 2.0, 10000.0/ 2.0,
-                        400.0/ 2.0, 1000.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 100.0/ 2.0, 100.0/ 2.0,
-                        100.0/ 2.0, 100.0/ 2.0,
-                        400.0/ 2.0, 1000.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 400.0/ 2.0, 100.0/ 2.0, 100.0/ 2.0;
-    Kv_.diagonal() << 15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
-                        15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
-                        200.0, 100.0, 100.0,
-                        10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0,
-                        2.0, 2.0,
-                        10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0;
+    double kp_scale = 2.0;
+    Kp_.diagonal() << 2000.0/ kp_scale, 5000.0/ kp_scale, 4000.0/ kp_scale, 3700.0/ kp_scale, 3200.0/ kp_scale, 3200.0/ kp_scale,
+                        2000.0/ kp_scale, 5000.0/ kp_scale, 4000.0/ kp_scale, 3700.0/ kp_scale, 3200.0/ kp_scale, 3200.0/ kp_scale,
+                        6000.0/ kp_scale, 10000.0/ kp_scale, 10000.0/ kp_scale,
+                        400.0/ kp_scale, 1000.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 100.0/ kp_scale, 100.0/ kp_scale,
+                        100.0/ kp_scale, 100.0/ kp_scale,
+                        400.0/ kp_scale, 1000.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 100.0/ kp_scale, 100.0/ kp_scale;
+    double kv_scale = 1.0;
+    Kv_.diagonal() << 15.0/ kv_scale, 50.0/ kv_scale, 20.0/ kv_scale, 25.0/ kv_scale, 24.0/ kv_scale, 24.0/ kv_scale,
+                        15.0/ kv_scale, 50.0/ kv_scale, 20.0/ kv_scale, 25.0/ kv_scale, 24.0/ kv_scale, 24.0/ kv_scale,
+                        200.0/ kv_scale, 100.0/ kv_scale, 100.0/ kv_scale,
+                        10.0/ kv_scale, 28.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 3.0/ kv_scale, 3.0/ kv_scale,
+                        2.0/ kv_scale, 2.0/ kv_scale,
+                        10.0/ kv_scale, 28.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 3.0/ kv_scale, 3.0/ kv_scale;
+}
+
+void CustomController::processNoise()
+{
+    std::random_device rd;  
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(-0.00001, 0.00001);
+    for (int i = 0; i < MODEL_DOF; i++) {
+        q_noise_(i) = rd_.q_virtual_(6+i) + dis(gen);
+    }
+    q_vel_noise_ = (q_noise_ - q_noise_pre_) * 2000.0;
+    q_noise_pre_ = q_noise_;
+    q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000.0, 1.0);
 }
 
 void CustomController::processObservation()
@@ -334,15 +349,7 @@ void CustomController::computeSlow()
             torque_init_ = rd_.torque_desired;
         } 
 
-        std::random_device rd;  
-        std::mt19937 gen(rd());
-        std::uniform_real_distribution<> dis(-0.00001, 0.00001);
-        for (int i = 0; i < MODEL_DOF; i++) {
-            q_noise_(i) = rd_.q_virtual_(6+i) + dis(gen);
-        }
-        q_vel_noise_ = (q_noise_ - q_noise_pre_) * 2000.0;
-        q_noise_pre_ = q_noise_;
-        q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000.0, 1.0);
+        processNoise();
         
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
         if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/50.0)

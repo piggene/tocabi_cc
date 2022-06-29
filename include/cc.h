@@ -20,6 +20,7 @@ public:
 
     //////////////////////////////////////////// Donghyeon RL /////////////////////////////////////////
     void loadNetwork();
+    void processNoise();
     void processObservation();
     void feedforwardPolicy();
     void initVariable();
@@ -48,7 +49,6 @@ public:
     bool is_write_file_ = false;
     Eigen::Matrix<double, MODEL_DOF, 1> q_lpf_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_dot_lpf_;
-    Eigen::Matrix<double, MODEL_DOF, 1> rl_action_lpf_;
     Eigen::Matrix<double, 3, 1> euler_angle_lpf_;
 
     Eigen::Matrix<double, MODEL_DOF, 1> q_init_;
