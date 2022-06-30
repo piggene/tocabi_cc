@@ -222,14 +222,14 @@ void CustomController::initVariable()
 
     Kp_.setZero();
     Kv_.setZero();
-    double kp_scale = 2.0;
+    double kp_scale = 4.0;
     Kp_.diagonal() << 2000.0/ kp_scale, 5000.0/ kp_scale, 4000.0/ kp_scale, 3700.0/ kp_scale, 3200.0/ kp_scale, 3200.0/ kp_scale,
                         2000.0/ kp_scale, 5000.0/ kp_scale, 4000.0/ kp_scale, 3700.0/ kp_scale, 3200.0/ kp_scale, 3200.0/ kp_scale,
                         6000.0/ kp_scale, 10000.0/ kp_scale, 10000.0/ kp_scale,
                         400.0/ kp_scale, 1000.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 100.0/ kp_scale, 100.0/ kp_scale,
                         100.0/ kp_scale, 100.0/ kp_scale,
                         400.0/ kp_scale, 1000.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 100.0/ kp_scale, 100.0/ kp_scale;
-    double kv_scale = 1.0;
+    double kv_scale = 2.0;
     Kv_.diagonal() << 15.0/ kv_scale, 50.0/ kv_scale, 20.0/ kv_scale, 25.0/ kv_scale, 24.0/ kv_scale, 24.0/ kv_scale,
                         15.0/ kv_scale, 50.0/ kv_scale, 20.0/ kv_scale, 25.0/ kv_scale, 24.0/ kv_scale, 24.0/ kv_scale,
                         200.0/ kv_scale, 100.0/ kv_scale, 100.0/ kv_scale,
