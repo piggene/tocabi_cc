@@ -219,23 +219,6 @@ void CustomController::initVariable()
                     64, 64, 64, 64, 23, 23, 10, 10,
                     10, 10,
                     64, 64, 64, 64, 23, 23, 10, 10;  
-
-    Kp_.setZero();
-    Kv_.setZero();
-    double kp_scale = 4.0;
-    Kp_.diagonal() << 2000.0/ kp_scale, 5000.0/ kp_scale, 4000.0/ kp_scale, 3700.0/ kp_scale, 3200.0/ kp_scale, 3200.0/ kp_scale,
-                        2000.0/ kp_scale, 5000.0/ kp_scale, 4000.0/ kp_scale, 3700.0/ kp_scale, 3200.0/ kp_scale, 3200.0/ kp_scale,
-                        6000.0/ kp_scale, 10000.0/ kp_scale, 10000.0/ kp_scale,
-                        400.0/ kp_scale, 1000.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 100.0/ kp_scale, 100.0/ kp_scale,
-                        100.0/ kp_scale, 100.0/ kp_scale,
-                        400.0/ kp_scale, 1000.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 400.0/ kp_scale, 100.0/ kp_scale, 100.0/ kp_scale;
-    double kv_scale = 2.0;
-    Kv_.diagonal() << 15.0/ kv_scale, 50.0/ kv_scale, 20.0/ kv_scale, 25.0/ kv_scale, 24.0/ kv_scale, 24.0/ kv_scale,
-                        15.0/ kv_scale, 50.0/ kv_scale, 20.0/ kv_scale, 25.0/ kv_scale, 24.0/ kv_scale, 24.0/ kv_scale,
-                        200.0/ kv_scale, 100.0/ kv_scale, 100.0/ kv_scale,
-                        10.0/ kv_scale, 28.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 3.0/ kv_scale, 3.0/ kv_scale,
-                        2.0/ kv_scale, 2.0/ kv_scale,
-                        10.0/ kv_scale, 28.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 10.0/ kv_scale, 3.0/ kv_scale, 3.0/ kv_scale;
 }
 
 void CustomController::processNoise()
@@ -352,7 +335,7 @@ void CustomController::computeSlow()
         processNoise();
         
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
-        if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/50.0)
+        if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/250.0)
         {
             processObservation();
             feedforwardPolicy();
@@ -362,8 +345,7 @@ void CustomController::computeSlow()
 
         for (int i = 0; i < MODEL_DOF; i++)
         {
-            torque_rl_(i) = Kp_(i,i) * (rl_action_(i)*3.14/180.0 + q_init_(i) - q_noise_(i)) - Kv_(i,i) * q_vel_noise_(i);
-            torque_rl_(i) = DyrosMath::minmax_cut(torque_rl_(i), -torque_bound_(i), torque_bound_(i));
+            torque_rl_(i) = DyrosMath::minmax_cut(rl_action_(i), -torque_bound_(i), torque_bound_(i));
         }
         
         if (rd_.control_time_us_ < start_time_ + 1e6)
@@ -381,7 +363,7 @@ void CustomController::computeSlow()
         
         if (is_write_file_)
         {
-            if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/250)
+            if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/250.0)
             {
                 writeFile << (rd_.control_time_us_ - start_time_)/1e6 << "\t";
                 writeFile << euler_angle_.transpose() << "\t";
