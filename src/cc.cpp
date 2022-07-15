@@ -197,6 +197,8 @@ void CustomController::initVariable()
     hidden_layer2_.resize(num_hidden, 1);
     rl_action_.resize(num_action, 1);
     
+    state_cur_.resize(num_state_cur, 1);
+    state_buf_.resize(num_state_cur*num_hist_*num_skip_, 1);
     state_.resize(num_state, 1);
     state_mean_.resize(num_state, 1);
     state_var_.resize(num_state, 1);
@@ -231,7 +233,7 @@ void CustomController::processNoise()
     }
     q_vel_noise_ = (q_noise_ - q_noise_pre_) * 2000.0;
     q_noise_pre_ = q_noise_;
-    q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000.0, 1.0);
+    q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000.0, 10.0);
 }
 
 void CustomController::processObservation()
@@ -247,10 +249,10 @@ void CustomController::processObservation()
     euler_angle_ = DyrosMath::rot2Euler_tf(q.toRotationMatrix());
     euler_angle_lpf_ =euler_angle_; // DyrosMath::lpf<3>(euler_angle_, euler_angle_lpf_, 2000, 10.0);
 
-    state_(data_idx) = euler_angle_lpf_(0);
+    state_cur_(data_idx) = euler_angle_lpf_(0);
     data_idx++;
 
-    state_(data_idx) = euler_angle_lpf_(1);
+    state_cur_(data_idx) = euler_angle_lpf_(1);
     data_idx++;
 
     q_lpf_ = rd_.q_virtual_.segment(6,MODEL_DOF); //DyrosMath::lpf<MODEL_DOF>(rd_.q_virtual_.segment(6,MODEL_DOF), q_lpf_, 2000, 10.0);
@@ -262,7 +264,7 @@ void CustomController::processObservation()
 
     for (int i = 0; i < MODEL_DOF; i++)
     {
-        state_(data_idx) = q_lpf_(i);
+        state_cur_(data_idx) = q_lpf_(i);
         data_idx++;
     }
 
@@ -274,21 +276,29 @@ void CustomController::processObservation()
     {
         if (is_on_robot_)
         {
-            state_(data_idx) = q_dot_lpf_(i);
+            state_cur_(data_idx) = q_dot_lpf_(i);
         }
         else
         {
-            state_(data_idx) =  q_dot_lpf_(i); //rd_.q_dot_virtual_(i+6); q_vel_noise_(i);
+            state_cur_(data_idx) =  q_dot_lpf_(i); //rd_.q_dot_virtual_(i+6); q_vel_noise_(i);
         }
         data_idx++;
     }
 
     float squat_duration = 8.0;
     float phase = std::fmod((rd_.control_time_us_-start_time_)/1e6, squat_duration) / squat_duration;
-    state_(data_idx) = sin(2*M_PI*phase);
+    state_cur_(data_idx) = sin(2*M_PI*phase);
     data_idx++;
-    state_(data_idx) = cos(2*M_PI*phase);
+    state_cur_(data_idx) = cos(2*M_PI*phase);
     data_idx++;
+
+    state_buf_.block(0, 0, num_state_cur*(num_skip_*num_hist_-1), 1) = state_buf_.block(num_state_cur, 0, num_state_cur*(num_skip_*num_hist_-1), 1);
+    state_buf_.block(num_state_cur*(num_skip_*num_hist_-1), 0, num_state_cur, 1) = state_cur_;
+
+    for (int i=0; i<num_hist_; i++) 
+    {
+        state_.block(i*num_state_cur, 0, num_state_cur, 1) = state_buf_.block((num_hist_-i-1)*num_state_cur, 0, num_state_cur, 1);
+    }            
 }
 
 void CustomController::feedforwardPolicy()
@@ -330,17 +340,30 @@ void CustomController::computeSlow()
             rd_.tc_init = false;
             std::cout<<"cc mode 11"<<std::endl;
             torque_init_ = rd_.torque_desired;
+
+            processObservation();
+            for (int i = 0; i <num_hist_; i++)
+            {
+                for (int j = 0; j < num_skip_; j++)
+                {
+                    state_buf_.block(0,0,num_state_cur*(num_skip_*num_hist_-1),1);
+                }
+            }
+            for (int i=0; i<num_hist_; i++) 
+            {
+                state_.block(i*num_state_cur, 0, num_state_cur, 1) = state_buf_.block((num_hist_-i-1)*num_state_cur, 0, num_state_cur, 1);
+            }  
         } 
 
         processNoise();
         
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
-        if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/250.0)
-        {
+        // if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/250.0)
+        // {
             processObservation();
             feedforwardPolicy();
             time_inference_pre_ = rd_.control_time_us_;
-        }
+        // }
 
 
         for (int i = 0; i < MODEL_DOF; i++)

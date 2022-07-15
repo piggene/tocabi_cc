@@ -25,7 +25,8 @@ public:
     void feedforwardPolicy();
     void initVariable();
 
-    static const int num_state = 70;
+    static const int num_state_cur = 70;
+    static const int num_state = 350;
     static const int num_hidden = 256;
     static const int num_action = 33;
 
@@ -39,6 +40,10 @@ public:
     Eigen::MatrixXd hidden_layer2_;
     Eigen::MatrixXd rl_action_;
     
+    int num_hist_ = 5;
+    int num_skip_ = 5;
+    Eigen::MatrixXd state_cur_;
+    Eigen::MatrixXd state_buf_;
     Eigen::MatrixXd state_;
     Eigen::MatrixXd state_mean_;
     Eigen::MatrixXd state_var_;
