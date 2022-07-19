@@ -38,6 +38,9 @@ public:
     Eigen::MatrixXd hidden_layer1_;
     Eigen::MatrixXd hidden_layer2_;
     Eigen::MatrixXd rl_action_;
+
+    Eigen::MatrixXd Kp_;
+    Eigen::MatrixXd Kv_;
     
     Eigen::MatrixXd state_;
     Eigen::MatrixXd state_mean_;
@@ -45,12 +48,14 @@ public:
 
     std::ofstream writeFile;
 
-    bool is_on_robot_ = false;
-    bool is_write_file_ = false;
+    bool is_on_robot_ = true;
+    bool is_write_file_ = true;
     Eigen::Matrix<double, MODEL_DOF, 1> q_lpf_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_dot_lpf_;
     Eigen::Matrix<double, 3, 1> euler_angle_lpf_;
 
+    Eigen::Matrix<double, MODEL_DOF, 1> q_target_;
+    Eigen::Matrix<double, MODEL_DOF, 1> q_traj_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_init_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_noise_;
     Eigen::Matrix<double, MODEL_DOF, 1> q_noise_pre_;

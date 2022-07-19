@@ -219,7 +219,33 @@ void CustomController::initVariable()
                 0.0, 0.0,
                 -0.3, -0.3, -1.5, 1.27, 1.0, 0.0, 1.0, 0.0;
 
+    q_target_ << 0.0, 0.0, -0.54, 1.2, -0.66, 0.0,
+                0.0, 0.0, -0.54, 1.2, -0.66, 0.0,
+                0.0, 0.0, 0.0,
+                0.1, 0.1, 1.2, -1.47, -1.2, 0.3, -0.7, 0.3,
+                0.0, 0.0,
+                -0.1, -0.1, -1.2, 1.47, 1.2, 0.3, 0.7, 0.3;
+
     q_noise_pre_ = q_noise_ = q_init_;
+
+    Kp_.resize(MODEL_DOF, MODEL_DOF);
+    Kp_.setZero();
+    Kp_.diagonal() << 2000.0, 5000.0, 4000.0, 3700.0, 3200.0, 3200.0,
+     2000.0, 5000.0, 4000.0, 3700.0, 3200.0, 3200.0,
+     6000.0, 10000.0, 10000.0,
+     400.0, 1000.0, 400.0, 400.0, 400.0, 400.0, 100.0, 100.0,
+     100.0, 100.0,
+     400.0, 1000.0, 400.0, 400.0, 400.0, 400.0, 100.0, 100.0;
+     Kp_.diagonal() = Kp_.diagonal() / 5.0; 
+
+    Kv_.resize(MODEL_DOF, MODEL_DOF);
+    Kv_.setZero();
+    Kv_.diagonal() << 15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
+     15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
+     200.0, 100.0, 100.0,
+     10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0,
+     2.0, 2.0,
+     10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0;
 }
 
 void CustomController::processNoise()
@@ -323,6 +349,31 @@ void CustomController::feedforwardPolicy()
     }
 
     rl_action_ = action_net_w_ * hidden_layer2_ + action_net_b_;
+
+    for (int i = 0; i < MODEL_DOF; i++)
+    {
+        if (rd_.control_time_us_ < start_time_ + 2e6)
+        {
+            q_traj_(i) = DyrosMath::cubic(rd_.control_time_us_, start_time_, start_time_ + 2e6, q_init_(i), q_target_(i), 0.0, 0.0);
+        }
+        else if (rd_.control_time_us_ < start_time_ + 4e6)
+        {
+            q_traj_(i) = q_target_(i);
+        }
+        else if (rd_.control_time_us_ < start_time_ + 6e6)
+        {
+            q_traj_(i) = DyrosMath::cubic(rd_.control_time_us_, start_time_+4e6, start_time_ + 6e6, q_target_(i), q_init_(i), 0.0, 0.0);
+        }
+        else
+        {
+            q_traj_(i) = q_init_(i);
+        }
+    }
+
+    for (int i = 0; i < MODEL_DOF; i++)
+    {
+        rl_action_(i) = Kp_(i,i) * (q_traj_(i) - q_lpf_(i)) - Kv_(i,i) * q_vel_noise_(i);
+    }
     
 }
 
@@ -357,22 +408,23 @@ void CustomController::computeSlow()
             torque_rl_(i) = DyrosMath::minmax_cut(rl_action_(i), -torque_bound_(i), torque_bound_(i));
         }
         
-        if (rd_.control_time_us_ < start_time_ + 1e6)
-        {
-            for (int i = 0; i <MODEL_DOF; i++)
-            {
-                torque_spline_(i) = DyrosMath::cubic(rd_.control_time_us_, start_time_, start_time_ + 1e6, torque_init_(i), torque_rl_(i), 0.0, 0.0);
-            }
-            rd_.torque_desired = torque_spline_;
-        }
-        else
-        {
-            rd_.torque_desired = torque_rl_;
-        }
+        // if (rd_.control_time_us_ < start_time_ + 1e6)
+        // {
+        //     for (int i = 0; i <MODEL_DOF; i++)
+        //     {
+        //         torque_spline_(i) = DyrosMath::cubic(rd_.control_time_us_, start_time_, start_time_ + 1e6, torque_init_(i), torque_rl_(i), 0.0, 0.0);
+        //     }
+        //     rd_.torque_desired = torque_spline_;
+        // }
+        // else
+        // {
+        //     rd_.torque_desired = torque_rl_;
+        // }
+        rd_.torque_desired = torque_rl_;
         
         if (is_write_file_)
         {
-            if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/250)
+            if ((rd_.control_time_us_ - time_inference_pre_)/1e6 > 1/250.0)
             {
                 writeFile << (rd_.control_time_us_ - start_time_)/1e6 << "\t";
                 writeFile << euler_angle_.transpose() << "\t";
