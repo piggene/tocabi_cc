@@ -220,6 +220,22 @@ void CustomController::initVariable()
                 -0.3, -0.3, -1.5, 1.27, 1.0, 0.0, 1.0, 0.0;
 
     q_noise_pre_ = q_noise_ = q_init_;
+
+    kp_.setZero();
+    kp_.diagonal() << 2000.0, 5000.0, 4000.0, 3700.0, 3200.0, 3200.0,
+                        2000.0, 5000.0, 4000.0, 3700.0, 3200.0, 3200.0,
+                        6000.0, 10000.0, 10000.0,
+                        400.0, 1000.0, 400.0, 400.0, 400.0, 400.0, 100.0, 100.0,
+                        100.0, 100.0,
+                        400.0, 1000.0, 400.0, 400.0, 400.0, 400.0, 100.0, 100.0;
+    kp_.diagonal() /= 2.0;
+    kv_.setZero();
+    kv_.diagonal() << 15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
+                        15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
+                        200.0, 100.0, 100.0,
+                        10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0,
+                        2.0, 2.0,
+                        10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0;
 }
 
 void CustomController::processNoise()
@@ -351,10 +367,10 @@ void CustomController::computeSlow()
             // time_inference_pre_ = rd_.control_time_us_;
         // }
 
-
+        torque_rl_ = kp_*(q_init_ + rl_action_*3.14/180.0 - q_noise_) - kv_*q_vel_noise_;
         for (int i = 0; i < MODEL_DOF; i++)
         {
-            torque_rl_(i) = DyrosMath::minmax_cut(rl_action_(i), -torque_bound_(i), torque_bound_(i));
+            torque_rl_(i) = DyrosMath::minmax_cut(torque_rl_(i), -torque_bound_(i), torque_bound_(i));
         }
         
         if (rd_.control_time_us_ < start_time_ + 1e6)

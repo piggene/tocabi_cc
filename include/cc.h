@@ -61,6 +61,9 @@ public:
     Eigen::Matrix<double, MODEL_DOF, 1> torque_rl_;
     Eigen::Matrix<double, MODEL_DOF, 1> torque_bound_;
 
+    Eigen::Matrix<double, MODEL_DOF, MODEL_DOF> kp_;
+    Eigen::Matrix<double, MODEL_DOF, MODEL_DOF> kv_;
+
     float start_time_;
     float time_inference_pre_;
 
