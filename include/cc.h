@@ -66,6 +66,8 @@ public:
 
     float start_time_;
     float time_inference_pre_;
+    float cur_time_;
+    float prev_time_;
 
     Eigen::Vector3d euler_angle_;
 

@@ -252,8 +252,10 @@ void CustomController::processNoise()
         for (int i = 0; i < MODEL_DOF; i++) {
             q_noise_(i) = rd_.q_virtual_(6+i) + dis(gen);
         }
-        q_vel_noise_ = (q_noise_ - q_noise_pre_) * 2000.0;
+        cur_time_ = rd_.control_time_us_ / 1e6;
+        q_vel_noise_ = (q_noise_ - q_noise_pre_) / (cur_time_ - prev_time_);
         q_noise_pre_ = q_noise_;
+        prev_time_ = cur_time_;
     }
 
     q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 2000.0, 10.0);
@@ -346,7 +348,6 @@ void CustomController::computeSlow()
 {
     if (rd_.tc_.mode == 11)
     {
-
         if (rd_.tc_init)
         {
             //Initialize settings for Task Control! 
