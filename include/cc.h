@@ -27,7 +27,7 @@ public:
     void initVariable();
     Eigen::Vector3d mat2euler(Eigen::Matrix3d mat);
 
-    static const int num_state = 70;
+    static const int num_state = 75;
     static const int num_hidden = 256;
     static const int num_action = 33;
 

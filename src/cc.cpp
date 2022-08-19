@@ -297,6 +297,9 @@ void CustomController::processObservation()
     state_(data_idx) = euler_angle_(1);
     data_idx++;
 
+    state_(data_idx) = euler_angle_(2);
+    data_idx++;
+
     for (int i = 0; i < MODEL_DOF; i++)
     {
         state_(data_idx) = q_noise_(i);
@@ -316,7 +319,13 @@ void CustomController::processObservation()
         data_idx++;
     }
 
-    float squat_duration = 8.0;
+    for (int i = 0; i < 3; i++)
+    {
+        state_(data_idx) = rd_cc_.q_dot_virtual_(i+3);;
+        data_idx++;
+    }
+
+    float squat_duration = 0.9;
     float phase = std::fmod((rd_cc_.control_time_us_-start_time_)/1e6, squat_duration) / squat_duration;
     state_(data_idx) = sin(2*M_PI*phase);
     data_idx++;
