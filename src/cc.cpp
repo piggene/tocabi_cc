@@ -331,6 +331,9 @@ void CustomController::processObservation()
     data_idx++;
     state_(data_idx) = cos(2*M_PI*phase);
     data_idx++;
+
+    state_(data_idx) = 0.4;
+    data_idx++;
 }
 
 void CustomController::feedforwardPolicy()
