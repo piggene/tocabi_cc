@@ -289,7 +289,7 @@ void CustomController::processObservation()
     q.z() = rd_cc_.q_virtual_(5);
     q.w() = rd_cc_.q_virtual_(MODEL_DOF_QVIRTUAL-1);    
 
-    euler_angle_ = mat2euler(q.toRotationMatrix());
+    euler_angle_ = DyrosMath::rot2Euler_tf(q.toRotationMatrix());
 
     state_(data_idx) = euler_angle_(0);
     data_idx++;
@@ -332,7 +332,7 @@ void CustomController::processObservation()
     state_(data_idx) = cos(2*M_PI*phase);
     data_idx++;
 
-    state_(data_idx) = 0.4;
+    state_(data_idx) = 0.2;
     data_idx++;
 }
 
