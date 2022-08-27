@@ -197,7 +197,9 @@ void CustomController::initVariable()
     hidden_layer2_.resize(num_hidden, 1);
     rl_action_.resize(num_action, 1);
     
+    state_cur_.resize(num_cur_state, 1);
     state_.resize(num_state, 1);
+    state_buffer_.resize(num_cur_state*num_state_skip*num_state_hist, 1);
     state_normalize_.resize(num_state, 1);
     state_mean_.resize(num_state, 1);
     state_var_.resize(num_state, 1);
@@ -218,6 +220,20 @@ void CustomController::initVariable()
                 0.0, 0.0,
                 -0.3, -0.3, -1.5, 1.27, 1.0, 0.0, 1.0, 0.0;
 
+    kp_.setZero();
+    kv_.setZero();
+    kp_.diagonal() <<   2000.0, 5000.0, 4000.0, 3700.0, 3200.0, 3200.0,
+                        2000.0, 5000.0, 4000.0, 3700.0, 3200.0, 3200.0,
+                        6000.0, 10000.0, 10000.0,
+                        400.0, 1000.0, 400.0, 400.0, 400.0, 400.0, 100.0, 100.0,
+                        100.0, 100.0,
+                        400.0, 1000.0, 400.0, 400.0, 400.0, 400.0, 100.0, 100.0;
+    kv_.diagonal() << 15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
+                        15.0, 50.0, 20.0, 25.0, 24.0, 24.0,
+                        200.0, 100.0, 100.0,
+                        10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0,
+                        2.0, 2.0,
+                        10.0, 28.0, 10.0, 10.0, 10.0, 10.0, 3.0, 3.0;
 }
 
 Eigen::Vector3d CustomController::mat2euler(Eigen::Matrix3d mat)
@@ -291,30 +307,31 @@ void CustomController::processObservation()
 
     euler_angle_ = DyrosMath::rot2Euler_tf(q.toRotationMatrix());
 
-    state_(data_idx) = euler_angle_(0);
+    state_cur_(data_idx) = euler_angle_(0);
     data_idx++;
 
-    state_(data_idx) = euler_angle_(1);
+    state_cur_(data_idx) = euler_angle_(1);
     data_idx++;
 
-    state_(data_idx) = euler_angle_(2);
+    state_cur_(data_idx) = euler_angle_(2);
     data_idx++;
 
-    for (int i = 0; i < MODEL_DOF; i++)
+
+    for (int i = 0; i < num_action; i++)
     {
-        state_(data_idx) = q_noise_(i);
+        state_cur_(data_idx) = q_noise_(i);
         data_idx++;
     }
 
-    for (int i = 0; i < MODEL_DOF; i++)
+    for (int i = 0; i < num_action; i++)
     {
         if (is_on_robot_)
         {
-            state_(data_idx) = q_dot_lpf_(i);
+            state_cur_(data_idx) = q_dot_lpf_(i);
         }
         else
         {
-            state_(data_idx) = q_dot_lpf_(i); //rd_cc_.q_dot_virtual_(i+6); //q_vel_noise_(i);
+            state_cur_(data_idx) = q_dot_lpf_(i); //rd_cc_.q_dot_virtual_(i+6); //q_vel_noise_(i);
         }
         data_idx++;
     }
@@ -327,13 +344,21 @@ void CustomController::processObservation()
 
     float squat_duration = 0.9;
     float phase = std::fmod((rd_cc_.control_time_us_-start_time_)/1e6, squat_duration) / squat_duration;
-    state_(data_idx) = sin(2*M_PI*phase);
+    state_cur_(data_idx) = sin(2*M_PI*phase);
     data_idx++;
-    state_(data_idx) = cos(2*M_PI*phase);
+    state_cur_(data_idx) = cos(2*M_PI*phase);
     data_idx++;
 
     state_(data_idx) = 0.2;
     data_idx++;
+
+    state_buffer_.block(0, 0, num_cur_state*(num_state_skip*num_state_hist-1),1) = state_buffer_.block(num_cur_state, 0, num_cur_state*(num_state_skip*num_state_hist-1),1);
+    state_buffer_.block(num_cur_state*(num_state_skip*num_state_hist-1), 0, num_cur_state,1) = state_cur_;
+
+    for (int i = 0; i < num_state_hist; i++)
+    {
+        state_.block(num_cur_state*i, 0, num_cur_state, 1) = state_buffer_.block(num_cur_state*num_state_skip*(num_state_hist-1-i), 0, num_cur_state, 1);
+    }
 }
 
 void CustomController::feedforwardPolicy()
@@ -378,12 +403,18 @@ void CustomController::computeSlow()
             rd_.tc_init = false;
             std::cout<<"cc mode 11"<<std::endl;
             torque_init_ = rd_cc_.torque_desired;
+
+            processObservation();
+            for (int i = 0; i < num_state_skip*num_state_hist; i++) 
+            {
+                state_buffer_.block(num_cur_state*i, 0, num_cur_state, 1) = state_cur_;
+            }
         } 
 
         processNoise();
 
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
-        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1e6 > 1/250.0)
+        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/250.0)
         {
             processObservation();
             feedforwardPolicy();
@@ -391,9 +422,13 @@ void CustomController::computeSlow()
         }
 
 
-        for (int i = 0; i < MODEL_DOF; i++)
+        for (int i = 0; i < num_action; i++)
         {
-            torque_rl_(i) = DyrosMath::minmax_cut(rl_action_(i), -torque_bound_(i), torque_bound_(i));
+            torque_rl_(i) = DyrosMath::minmax_cut(rl_action_(i)*torque_bound_(i), -torque_bound_(i), torque_bound_(i));
+        }
+        for (int i = num_action; i < MODEL_DOF; i++)
+        {
+            torque_rl_(i) = kp_(i,i) * (q_init_(i) - q_noise_(i)) - kv_(i,i)*q_vel_noise_(i);
         }
         
         if (rd_cc_.control_time_us_ < start_time_ + 1e6)
@@ -402,7 +437,7 @@ void CustomController::computeSlow()
             {
                 torque_spline_(i) = DyrosMath::cubic(rd_cc_.control_time_us_, start_time_, start_time_ + 1e6, torque_init_(i), torque_rl_(i), 0.0, 0.0);
             }
-            rd_cc_.torque_desired = torque_spline_;
+            rd_.torque_desired = torque_spline_;
         }
         else
         {
