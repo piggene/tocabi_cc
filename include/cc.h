@@ -32,7 +32,8 @@ public:
     static const int num_state_hist = 1;
     static const int num_state = num_cur_state*num_state_hist;
     static const int num_hidden = 256;
-    static const int num_action = 12;
+    static const int num_action = 13;
+    static const int num_actuator_action = 12;
 
     Eigen::MatrixXd policy_net_w0_;
     Eigen::MatrixXd policy_net_b0_;
@@ -76,6 +77,7 @@ public:
 
     double time_cur_;
     double time_pre_;
+    double action_dt_accumulate_ = 0.0;
 
     Eigen::Vector3d euler_angle_;
 

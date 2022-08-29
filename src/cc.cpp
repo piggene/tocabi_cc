@@ -317,13 +317,13 @@ void CustomController::processObservation()
     data_idx++;
 
 
-    for (int i = 0; i < num_action; i++)
+    for (int i = 0; i < num_actuator_action; i++)
     {
         state_cur_(data_idx) = q_noise_(i);
         data_idx++;
     }
 
-    for (int i = 0; i < num_action; i++)
+    for (int i = 0; i < num_actuator_action; i++)
     {
         if (is_on_robot_)
         {
@@ -343,7 +343,7 @@ void CustomController::processObservation()
     }
 
     float squat_duration = 1.7995;
-    float phase = std::fmod((rd_cc_.control_time_us_-start_time_)/1e6, squat_duration) / squat_duration;
+    float phase = std::fmod((rd_cc_.control_time_us_-start_time_)/1e6 + action_dt_accumulate_, squat_duration) / squat_duration;
     state_cur_(data_idx) = sin(2*M_PI*phase);
     data_idx++;
     state_cur_(data_idx) = cos(2*M_PI*phase);
@@ -418,31 +418,32 @@ void CustomController::computeSlow()
         {
             processObservation();
             feedforwardPolicy();
+            
+            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/250.0, 0.0, 1/250.0);
             time_inference_pre_ = rd_cc_.control_time_us_;
         }
 
-
-        for (int i = 0; i < num_action; i++)
+        for (int i = 0; i < num_actuator_action; i++)
         {
             torque_rl_(i) = DyrosMath::minmax_cut(rl_action_(i)*torque_bound_(i), -torque_bound_(i), torque_bound_(i));
         }
-        for (int i = num_action; i < MODEL_DOF; i++)
+        for (int i = num_actuator_action; i < MODEL_DOF; i++)
         {
             torque_rl_(i) = kp_(i,i) * (q_init_(i) - q_noise_(i)) - kv_(i,i)*q_vel_noise_(i);
         }
         
-        if (rd_cc_.control_time_us_ < start_time_ + 1e6)
-        {
-            for (int i = 0; i <MODEL_DOF; i++)
-            {
-                torque_spline_(i) = DyrosMath::cubic(rd_cc_.control_time_us_, start_time_, start_time_ + 1e6, torque_init_(i), torque_rl_(i), 0.0, 0.0);
-            }
-            rd_.torque_desired = torque_spline_;
-        }
-        else
-        {
+        // if (rd_cc_.control_time_us_ < start_time_ + 1e6)
+        // {
+        //     for (int i = 0; i <MODEL_DOF; i++)
+        //     {
+        //         torque_spline_(i) = DyrosMath::cubic(rd_cc_.control_time_us_, start_time_, start_time_ + 1e6, torque_init_(i), torque_rl_(i), 0.0, 0.0);
+        //     }
+        //     rd_.torque_desired = torque_spline_;
+        // }
+        // else
+        // {
              rd_.torque_desired = torque_rl_;
-        }
+        // }
         
         if (is_write_file_)
         {
