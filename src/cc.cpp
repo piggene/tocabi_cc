@@ -265,7 +265,7 @@ void CustomController::processNoise()
         q_noise_= rd_cc_.q_virtual_.segment(6,MODEL_DOF);
         if (time_cur_ - time_pre_ > 0.0)
         {
-            q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 1/(time_cur_ - time_pre_), 1.0);
+            q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 1/(time_cur_ - time_pre_), 4.0);
         }
         else
         {
@@ -283,7 +283,7 @@ void CustomController::processNoise()
         if (time_cur_ - time_pre_ > 0.0)
         {
             q_vel_noise_ = (q_noise_ - q_noise_pre_) / (time_cur_ - time_pre_);
-            q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 1/(time_cur_ - time_pre_), 1.0);
+            q_dot_lpf_ = DyrosMath::lpf<MODEL_DOF>(q_vel_noise_, q_dot_lpf_, 1/(time_cur_ - time_pre_), 4.0);
         }
         else
         {
@@ -336,11 +336,11 @@ void CustomController::processObservation()
         data_idx++;
     }
 
-    // for (int i = 0; i < 3; i++)
-    // {
-    //     state_(data_idx) = rd_cc_.q_dot_virtual_(i+3);
-    //     data_idx++;
-    // }
+    for (int i = 0; i < 3; i++)
+    {
+        state_(data_idx) = rd_cc_.q_dot_virtual_(i+3);
+        data_idx++;
+    }
 
     float squat_duration = 1.7995;
     float phase = std::fmod((rd_cc_.control_time_us_-start_time_)/1e6 + action_dt_accumulate_, squat_duration) / squat_duration;
