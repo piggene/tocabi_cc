@@ -336,11 +336,11 @@ void CustomController::processObservation()
         data_idx++;
     }
 
-    for (int i = 0; i < 3; i++)
-    {
-        state_(data_idx) = rd_cc_.q_dot_virtual_(i+3);
-        data_idx++;
-    }
+    // for (int i = 0; i < 3; i++)
+    // {
+    //     state_(data_idx) = rd_cc_.q_dot_virtual_(i+3);
+    //     data_idx++;
+    // }
 
     float squat_duration = 1.7995;
     float phase = std::fmod((rd_cc_.control_time_us_-start_time_)/1e6 + action_dt_accumulate_, squat_duration) / squat_duration;
