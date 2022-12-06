@@ -366,7 +366,7 @@ void CustomController::feedforwardPolicy()
     for (int i = 0; i <num_state; i++)
     {
         state_normalize_(i) = (state_(i) - state_mean_(i)) / sqrt(state_var_(i) + 1.0e-08);
-        state_normalize_(i) = DyrosMath::minmax_cut(state_normalize_(i), -3.0, 3.0);
+        state_normalize_(i) = DyrosMath::minmax_cut(state_normalize_(i), -10.0, 10.0);
     }
     
     hidden_layer1_ = policy_net_w0_ * state_normalize_ + policy_net_b0_;
@@ -390,7 +390,7 @@ void CustomController::feedforwardPolicy()
 void CustomController::computeSlow()
 {
     copyRobotData(rd_);
-    if (rd_cc_.tc_.mode == 11)
+    if (rd_cc_.tc_.mode == 7)
     {
         if (rd_cc_.tc_init)
         {
@@ -401,7 +401,7 @@ void CustomController::computeSlow()
             time_pre_ = time_cur_ - 0.005;
 
             rd_.tc_init = false;
-            std::cout<<"cc mode 11"<<std::endl;
+            std::cout<<"cc mode 7"<<std::endl;
             torque_init_ = rd_cc_.torque_desired;
 
             processObservation();
