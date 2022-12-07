@@ -3,6 +3,9 @@
 #include <random>
 #include <cmath>
 
+#include <ros/ros.h>
+#include <sensor_msgs/Joy.h>
+
 class CustomController
 {
 public:
@@ -80,6 +83,14 @@ public:
     double action_dt_accumulate_ = 0.0;
 
     Eigen::Vector3d euler_angle_;
+
+    // Joystick
+    ros::NodeHandle nh_;
+
+    void joyCallback(const sensor_msgs::Joy::ConstPtr& joy);
+    ros::Subscriber joy_sub_;
+
+    double target_vel_ = 0.0;
 
 private:
     Eigen::VectorQd ControlVal_;

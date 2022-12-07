@@ -20,6 +20,8 @@ CustomController::CustomController(RobotData &rd) : rd_(rd) //, wbc_(dc.wbc_)
     }
     initVariable();
     loadNetwork();
+
+    joy_sub_ = nh_.subscribe<sensor_msgs::Joy>("joy", 10, &CustomController::joyCallback, this);
 }
 
 Eigen::VectorQd CustomController::getControl()
@@ -349,7 +351,7 @@ void CustomController::processObservation()
     state_cur_(data_idx) = cos(2*M_PI*phase);
     data_idx++;
 
-    state_(data_idx) = 0.2;
+    state_cur_(data_idx) = target_vel_;
     data_idx++;
 
     state_buffer_.block(0, 0, num_cur_state*(num_state_skip*num_state_hist-1),1) = state_buffer_.block(num_cur_state, 0, num_cur_state*(num_state_skip*num_state_hist-1),1);
@@ -482,4 +484,9 @@ void CustomController::computePlanner()
 void CustomController::copyRobotData(RobotData &rd_l)
 {
     std::memcpy(&rd_cc_, &rd_l, sizeof(RobotData));
+}
+
+void CustomController::joyCallback(const sensor_msgs::Joy::ConstPtr& joy)
+{
+    target_vel_ = DyrosMath::minmax_cut(0.5*joy->axes[1], -0.2, 0.5);
 }
