@@ -47,8 +47,8 @@ void CustomController::loadNetwork()
     file[3].open(cur_path+"mlp_extractor_policy_net_2_bias.txt", std::ios::in);
     file[4].open(cur_path+"action_net_weight.txt", std::ios::in);
     file[5].open(cur_path+"action_net_bias.txt", std::ios::in);
-    file[6].open(cur_path+"obs_mean.txt", std::ios::in);
-    file[7].open(cur_path+"obs_variance.txt", std::ios::in);
+    file[6].open(cur_path+"obs_mean_fixed.txt", std::ios::in);
+    file[7].open(cur_path+"obs_variance_fixed.txt", std::ios::in);
 
     if(!file[0].is_open())
     {
