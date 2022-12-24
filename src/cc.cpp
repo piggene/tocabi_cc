@@ -416,12 +416,12 @@ void CustomController::computeSlow()
         processNoise();
 
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
-        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/250.0)
+        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/125.0)
         {
             processObservation();
             feedforwardPolicy();
             
-            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/250.0, 0.0, 1/250.0);
+            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/125.0, 0.0, 1/125.0);
             time_inference_pre_ = rd_cc_.control_time_us_;
         }
 
@@ -449,7 +449,7 @@ void CustomController::computeSlow()
         
         if (is_write_file_)
         {
-            if ((rd_cc_.control_time_us_ - time_write_pre_)/1e6 > 1/250.0)
+            if ((rd_cc_.control_time_us_ - time_write_pre_)/1e6 > 1/125.0)
             {
                 writeFile << (rd_cc_.control_time_us_ - start_time_)/1e6 << "\t";
 
