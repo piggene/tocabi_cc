@@ -34,21 +34,23 @@ void CustomController::loadNetwork()
     state_.setZero();
     rl_action_.setZero();
 
-    string cur_path = "/home/kim/tocabi_ws/src/tocabi_cc/weight/";
+    string cur_path = "/home/kim/tocabi_ws/src/tocabi_cc/";
 
     if (is_on_robot_)
     {
-        cur_path = "/home/dyros/catkin_ws/src/tocabi_cc/weight/";
+        cur_path = "/home/dyros/catkin_ws/src/tocabi_cc/";
     }
-    std::ifstream file[8];
-    file[0].open(cur_path+"mlp_extractor_policy_net_0_weight.txt", std::ios::in);
-    file[1].open(cur_path+"mlp_extractor_policy_net_0_bias.txt", std::ios::in);
-    file[2].open(cur_path+"mlp_extractor_policy_net_2_weight.txt", std::ios::in);
-    file[3].open(cur_path+"mlp_extractor_policy_net_2_bias.txt", std::ios::in);
-    file[4].open(cur_path+"action_net_weight.txt", std::ios::in);
-    file[5].open(cur_path+"action_net_bias.txt", std::ios::in);
-    file[6].open(cur_path+"obs_mean_fixed.txt", std::ios::in);
-    file[7].open(cur_path+"obs_variance_fixed.txt", std::ios::in);
+    std::ifstream file[9];
+    file[0].open(cur_path+"weight/mlp_extractor_policy_net_0_weight.txt", std::ios::in);
+    file[1].open(cur_path+"weight/mlp_extractor_policy_net_0_bias.txt", std::ios::in);
+    file[2].open(cur_path+"weight/mlp_extractor_policy_net_2_weight.txt", std::ios::in);
+    file[3].open(cur_path+"weight/mlp_extractor_policy_net_2_bias.txt", std::ios::in);
+    file[4].open(cur_path+"weight/action_net_weight.txt", std::ios::in);
+    file[5].open(cur_path+"weight/action_net_bias.txt", std::ios::in);
+    file[6].open(cur_path+"weight/obs_mean_fixed.txt", std::ios::in);
+    file[7].open(cur_path+"weight/obs_variance_fixed.txt", std::ios::in);
+
+    file[8].open(cur_path+"motion/processed_data_tocabi_walk_with_upper.txt", std::ios::in);
 
     if(!file[0].is_open())
     {
@@ -185,6 +187,22 @@ void CustomController::loadNetwork()
             }
         }
     }
+    row = 0;
+    col = 0;
+    while(!file[8].eof() && row != ref_motion_.rows())
+    {
+        file[8] >> temp;
+        if(temp != '\n')
+        {
+            ref_motion_(row, col) = temp;
+            col ++;
+            if (col == ref_motion_.cols())
+            {
+                col = 0;
+                row ++;
+            }
+        }
+    }
 }
 
 void CustomController::initVariable()
@@ -198,6 +216,8 @@ void CustomController::initVariable()
     hidden_layer1_.resize(num_hidden, 1);
     hidden_layer2_.resize(num_hidden, 1);
     rl_action_.resize(num_action, 1);
+
+    ref_motion_.resize(num_ref_motion, MODEL_DOF+1);
     
     state_cur_.resize(num_cur_state, 1);
     state_.resize(num_state, 1);
@@ -338,12 +358,6 @@ void CustomController::processObservation()
         data_idx++;
     }
 
-    // for (int i = 0; i < 3; i++)
-    // {
-    //     state_(data_idx) = rd_cc_.q_dot_virtual_(i+3);
-    //     data_idx++;
-    // }
-
     float squat_duration = 1.7995;
     float phase = std::fmod((rd_cc_.control_time_us_-start_time_)/1e6 + action_dt_accumulate_, squat_duration) / squat_duration;
     state_cur_(data_idx) = sin(2*M_PI*phase);
@@ -351,7 +365,7 @@ void CustomController::processObservation()
     state_cur_(data_idx) = cos(2*M_PI*phase);
     data_idx++;
 
-    state_cur_(data_idx) = target_vel_;
+    state_cur_(data_idx) = 0.2;//target_vel_;
     data_idx++;
 
     state_buffer_.block(0, 0, num_cur_state*(num_state_skip*num_state_hist-1),1) = state_buffer_.block(num_cur_state, 0, num_cur_state*(num_state_skip*num_state_hist-1),1);
@@ -398,7 +412,7 @@ void CustomController::computeSlow()
         {
             //Initialize settings for Task Control! 
             start_time_ = rd_cc_.control_time_us_;
-            q_noise_pre_ = q_noise_ = rd_cc_.q_virtual_.segment(6,MODEL_DOF);
+            q_noise_pre_ = q_noise_ = q_init_ = rd_cc_.q_virtual_.segment(6,MODEL_DOF);
             time_cur_ = start_time_ / 1e6;
             time_pre_ = time_cur_ - 0.005;
 
@@ -416,22 +430,33 @@ void CustomController::computeSlow()
         processNoise();
 
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
-        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/125.0)
+        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/250.0)
         {
             processObservation();
             feedforwardPolicy();
             
-            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/125.0, 0.0, 1/125.0);
+            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/250.0, 0.0, 1/250.0);
             time_inference_pre_ = rd_cc_.control_time_us_;
         }
+
 
         for (int i = 0; i < num_actuator_action; i++)
         {
             torque_rl_(i) = DyrosMath::minmax_cut(rl_action_(i)*torque_bound_(i), -torque_bound_(i), torque_bound_(i));
         }
+
+        double mocap_cycle_dt = 0.0005;
+        double mocap_cycle_period = (num_ref_motion-1) * mocap_cycle_dt;
+        double local_time = fmod((rd_cc_.control_time_us_ - start_time_)/1.0e6 +action_dt_accumulate_, mocap_cycle_period); 
+        int mocap_data_idx = int(local_time/ mocap_cycle_dt) % (num_ref_motion-1);
+
+        Eigen::Matrix<double, MODEL_DOF, 1> q_cubic;
+        q_cubic.setZero();
+
         for (int i = num_actuator_action; i < MODEL_DOF; i++)
         {
-            torque_rl_(i) = kp_(i,i) * (q_init_(i) - q_noise_(i)) - kv_(i,i)*q_vel_noise_(i);
+            q_cubic(i) =  DyrosMath::cubic(local_time, ref_motion_(mocap_data_idx,0), ref_motion_(mocap_data_idx+1,0), ref_motion_(mocap_data_idx,1+i), ref_motion_(mocap_data_idx+1,1+i), 0.0, 0.0);
+            torque_rl_(i) = kp_(i,i) * (q_cubic(i) - q_noise_(i)) - kv_(i,i)*q_vel_noise_(i);
         }
         
         if (rd_cc_.control_time_us_ < start_time_ + 0.5e6)
@@ -449,7 +474,7 @@ void CustomController::computeSlow()
         
         if (is_write_file_)
         {
-            if ((rd_cc_.control_time_us_ - time_write_pre_)/1e6 > 1/125.0)
+            if ((rd_cc_.control_time_us_ - time_write_pre_)/1e6 > 1/250.0)
             {
                 writeFile << (rd_cc_.control_time_us_ - start_time_)/1e6 << "\t";
 
@@ -463,6 +488,45 @@ void CustomController::computeSlow()
                 time_write_pre_ = rd_cc_.control_time_us_;
             }
         }
+
+    }
+
+    if (rd_cc_.tc_.mode == 8)
+    {
+        if (rd_cc_.tc_init)
+        {
+            //Initialize settings for Task Control! 
+
+            start_time_ = rd_cc_.control_time_us_;
+            q_noise_pre_ = q_noise_ = q_init_ = rd_cc_.q_virtual_.segment(6,MODEL_DOF);
+            time_cur_ = start_time_ / 1e6;
+            time_pre_ = time_cur_ - 0.005;
+            
+            rd_.tc_init = false;
+            std::cout<<"cc mode 8"<<std::endl;
+        } 
+
+        processNoise();
+
+        Eigen::Matrix<double, MODEL_DOF, 1> q_target;
+        Eigen::Matrix<double, MODEL_DOF, 1> q_cubic;
+
+        q_target << 0.0, 0.0, -0.24, 0.6, -0.36, 0.0,
+                        0.0, 0.0, -0.24, 0.6, -0.36, 0.0,
+                        0.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                        0.0, 0.0, 
+                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+        q_target.block(12, 0, MODEL_DOF-12, 1) = ref_motion_.block(0, 12+1, 1, MODEL_DOF-12).transpose();
+
+        q_cubic = q_target;
+        for (int i = 0; i <MODEL_DOF; i++)
+        {
+            q_cubic(i) = DyrosMath::cubic(rd_cc_.control_time_us_, start_time_, start_time_ + 2.0e6, q_init_(i), q_target(i), 0.0, 0.0);
+
+            torque_spline_(i) = kp_(i,i) * (q_cubic(i) - q_noise_(i)) - kv_(i,i)*q_vel_noise_(i);
+        }
+        rd_.torque_desired = torque_spline_;
 
     }
 }
