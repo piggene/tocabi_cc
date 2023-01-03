@@ -355,9 +355,9 @@ void CustomController::processObservation()
     if (abs(rd_cc_.RF_FT(2)) > 200)
         right_contact = true;
     
-    state_cur_(data_idx) = left_contact;
+    state_cur_(data_idx) = rd_cc_.LF_FT(2);
     data_idx++;
-    state_cur_(data_idx) = right_contact;
+    state_cur_(data_idx) = rd_cc_.RF_FT(2);
     data_idx++;
 
     state_cur_(data_idx) = 0.2;//target_vel_;
