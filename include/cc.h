@@ -63,6 +63,8 @@ public:
 
     bool is_on_robot_ = false;
     bool is_write_file_ = false;
+
+    float phase_ = 0.0;
     Eigen::Matrix<double, MODEL_DOF, 1> q_dot_lpf_;
 
     Eigen::Matrix<double, MODEL_DOF, 1> q_init_;
