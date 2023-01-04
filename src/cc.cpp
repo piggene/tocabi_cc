@@ -348,26 +348,6 @@ void CustomController::processObservation()
     state_cur_(data_idx) = cos(2*M_PI*phase_);
     data_idx++;
 
-    bool left_contact=false;
-    bool right_contact=false;
-    if (abs(rd_cc_.LF_FT(2)) > 200)
-        left_contact = true;
-    if (abs(rd_cc_.RF_FT(2)) > 200)
-        right_contact = true;
-    
-    state_cur_(data_idx) = rd_cc_.LF_FT(2);
-    data_idx++;
-    state_cur_(data_idx) = rd_cc_.RF_FT(2);
-    data_idx++;
-    state_cur_(data_idx) = rd_cc_.LF_FT(3);
-    data_idx++;
-    state_cur_(data_idx) = rd_cc_.LF_FT(4);
-    data_idx++;
-    state_cur_(data_idx) = rd_cc_.RF_FT(3);
-    data_idx++;
-    state_cur_(data_idx) = rd_cc_.RF_FT(4);
-    data_idx++;
-
     state_cur_(data_idx) = 0.2;//target_vel_;
     data_idx++;
 
@@ -433,12 +413,12 @@ void CustomController::computeSlow()
         processNoise();
 
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
-        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/250.0)
+        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/62.5)
         {
             processObservation();
             feedforwardPolicy();
             
-            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/250.0, 0.0, 1/250.0);
+            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/62.5, 0.0, 1/62.5);
             time_inference_pre_ = rd_cc_.control_time_us_;
         }
 
@@ -473,7 +453,7 @@ void CustomController::computeSlow()
             {
                 writeFile << (rd_cc_.control_time_us_ - start_time_)/1e6 << "\t";
                 writeFile << phase_ << "\t";
-                writeFile << DyrosMath::minmax_cut(rl_action_(num_action-1)*1/250.0, 0.0, 1/250.0) << "\t";
+                writeFile << DyrosMath::minmax_cut(rl_action_(num_action-1)*1/62.5, 0.0, 1/62.5) << "\t";
 
                 writeFile << rd_cc_.LF_FT.transpose() << "\t";
                 writeFile << rd_cc_.RF_FT.transpose() << "\t";
