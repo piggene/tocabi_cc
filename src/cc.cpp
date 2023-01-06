@@ -34,6 +34,7 @@ void CustomController::loadNetwork()
     state_.setZero();
     rl_action_.setZero();
 
+
     string cur_path = "/home/kim/tocabi_ws/src/tocabi_cc/";
 
     if (is_on_robot_)
@@ -199,8 +200,6 @@ void CustomController::initVariable()
     hidden_layer1_.resize(num_hidden, 1);
     hidden_layer2_.resize(num_hidden, 1);
     rl_action_.resize(num_action, 1);
-
-    ref_motion_.resize(num_ref_motion, MODEL_DOF+1);
     
     state_cur_.resize(num_cur_state, 1);
     state_.resize(num_state, 1);
@@ -413,26 +412,23 @@ void CustomController::computeSlow()
         processNoise();
 
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
-        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/62.5)
+        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/125.0)
         {
             processObservation();
             feedforwardPolicy();
             
-            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/62.5, 0.0, 1/62.5);
+            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/125.0, 0.0, 1/125.0);
             time_inference_pre_ = rd_cc_.control_time_us_;
         }
-
 
         for (int i = 0; i < num_actuator_action; i++)
         {
             torque_rl_(i) = DyrosMath::minmax_cut(rl_action_(i)*torque_bound_(i), -torque_bound_(i), torque_bound_(i));
         }
-
         for (int i = num_actuator_action; i < MODEL_DOF; i++)
         {
             torque_rl_(i) = kp_(i,i) * (q_init_(i) - q_noise_(i)) - kv_(i,i)*q_vel_noise_(i);
         }
-        
         
         if (rd_cc_.control_time_us_ < start_time_ + 0.5e6)
         {
@@ -446,14 +442,13 @@ void CustomController::computeSlow()
         {
              rd_.torque_desired = torque_rl_;
         }
-        
         if (is_write_file_)
         {
             if ((rd_cc_.control_time_us_ - time_write_pre_)/1e6 > 1/240.0)
             {
                 writeFile << (rd_cc_.control_time_us_ - start_time_)/1e6 << "\t";
                 writeFile << phase_ << "\t";
-                writeFile << DyrosMath::minmax_cut(rl_action_(num_action-1)*1/62.5, 0.0, 1/62.5) << "\t";
+                writeFile << DyrosMath::minmax_cut(rl_action_(num_action-1)*1/125.0, 0.0, 1/125.0) << "\t";
 
                 writeFile << rd_cc_.LF_FT.transpose() << "\t";
                 writeFile << rd_cc_.RF_FT.transpose() << "\t";
