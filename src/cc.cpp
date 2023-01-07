@@ -342,13 +342,13 @@ void CustomController::processObservation()
     }
 
     float squat_duration = 1.7995;
-    float phase = std::fmod((rd_cc_.control_time_us_-start_time_)/1e6 + action_dt_accumulate_, squat_duration) / squat_duration;
-    state_cur_(data_idx) = sin(2*M_PI*phase);
+    phase_ = std::fmod((rd_cc_.control_time_us_-start_time_)/1e6 + action_dt_accumulate_, squat_duration) / squat_duration;
+    state_cur_(data_idx) = sin(2*M_PI*phase_);
     data_idx++;
-    state_cur_(data_idx) = cos(2*M_PI*phase);
+    state_cur_(data_idx) = cos(2*M_PI*phase_);
     data_idx++;
 
-    state_cur_(data_idx) = target_vel_;
+    state_cur_(data_idx) = 0.2;//target_vel_;
     data_idx++;
 
     state_buffer_.block(0, 0, num_cur_state*(num_state_skip*num_state_hist-1),1) = state_buffer_.block(num_cur_state, 0, num_cur_state*(num_state_skip*num_state_hist-1),1);
@@ -413,12 +413,12 @@ void CustomController::computeSlow()
         processNoise();
 
         // processObservation and feedforwardPolicy mean time: 15 us, max 53 us
-        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/125.0)
+        if ((rd_cc_.control_time_us_ - time_inference_pre_)/1.0e6 > 1/250.0)
         {
             processObservation();
             feedforwardPolicy();
             
-            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/125.0, 0.0, 1/125.0);
+            action_dt_accumulate_ += DyrosMath::minmax_cut(rl_action_(num_action-1)*1/250.0, 0.0, 1/250.0);
             time_inference_pre_ = rd_cc_.control_time_us_;
         }
 
@@ -449,15 +449,22 @@ void CustomController::computeSlow()
         
         if (is_write_file_)
         {
-            if ((rd_cc_.control_time_us_ - time_write_pre_)/1e6 > 1/250.0)
+            if ((rd_cc_.control_time_us_ - time_write_pre_)/1e6 > 1/240.0)
             {
                 writeFile << (rd_cc_.control_time_us_ - start_time_)/1e6 << "\t";
+                writeFile << phase_ << "\t";
+                writeFile << DyrosMath::minmax_cut(rl_action_(num_action-1)*1/250.0, 0.0, 1/250.0) << "\t";
 
-                writeFile << rd_cc_.torque_desired.transpose()  << "\t"; 
-                for (int i = 0; i <num_state; i++)
-                {
-                    writeFile << state_(i) << "\t";
-                }
+                writeFile << rd_cc_.LF_FT.transpose() << "\t";
+                writeFile << rd_cc_.RF_FT.transpose() << "\t";
+                writeFile << rd_cc_.LF_CF_FT.transpose() << "\t";
+                writeFile << rd_cc_.RF_CF_FT.transpose() << "\t";
+
+                writeFile << rd_cc_.torque_desired.transpose()  << "\t";
+                writeFile << q_noise_.transpose() << "\t";
+                writeFile << q_dot_lpf_.transpose() << "\t";
+                writeFile << rd_cc_.q_dot_virtual_.transpose() << "\t";
+               
                 writeFile << std::endl;
 
                 time_write_pre_ = rd_cc_.control_time_us_;
