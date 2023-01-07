@@ -38,6 +38,8 @@ public:
     static const int num_action = 13;
     static const int num_actuator_action = 12;
 
+    static const int num_ref_motion = 3600;
+
     Eigen::MatrixXd policy_net_w0_;
     Eigen::MatrixXd policy_net_b0_;
     Eigen::MatrixXd policy_net_w2_;
@@ -47,6 +49,8 @@ public:
     Eigen::MatrixXd hidden_layer1_;
     Eigen::MatrixXd hidden_layer2_;
     Eigen::MatrixXd rl_action_;
+
+    Eigen::MatrixXd ref_motion_;
     
     Eigen::MatrixXd state_;
     Eigen::MatrixXd state_cur_;
@@ -57,10 +61,10 @@ public:
 
     std::ofstream writeFile;
 
-    float phase_ = 0.0;
-
     bool is_on_robot_ = false;
-    bool is_write_file_ = true;
+    bool is_write_file_ = false;
+
+    float phase_ = 0.0;
     Eigen::Matrix<double, MODEL_DOF, 1> q_dot_lpf_;
 
     Eigen::Matrix<double, MODEL_DOF, 1> q_init_;
