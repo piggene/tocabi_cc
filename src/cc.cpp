@@ -459,6 +459,7 @@ void CustomController::computeSlow()
                 writeFile << q_noise_.transpose() << "\t";
                 writeFile << q_dot_lpf_.transpose() << "\t";
                 writeFile << rd_cc_.q_dot_virtual_.transpose() << "\t";
+                writeFile << rd_cc_.q_virtual_.transpose() << "\t";
                
                 writeFile << std::endl;
 
