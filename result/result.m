@@ -22,16 +22,26 @@ clear all
 d3 = load('data.csv');
 
 figure();
-for i=1:33
-    subplot(6,6,i);
-    plot(d3(:,1),d3(:,7+i))
-end
 
+plot(d3(:,1),d3(:,6))
+hold on
+plot(d3(:,1),d3(:,12))
 
-figure();
-for i=1:33
-    subplot(6,6,i);
-    plot(d3(:,1),d3(:,73+i))
-    hold on
-plot(d3(:,1),d3(:,106+i))
-end
+%% Value Function
+d = load('data_stop_by_value_function.csv');
+yyaxis left
+plot(d(:,1),d(:,206), 'LineWidth', 7)
+ylabel('Value','FontSize', 40, 'FontWeight','bold')
+yyaxis right
+plot(d(:,1),d(:,end), 'LineWidth', 7)
+ylabel('IsStopped','FontSize', 40, 'FontWeight','bold')
+
+set(gca,'FontSize',20, 'FontWeight','bold')
+title('Emergent Stop Using Value Function','FontSize', 50)
+xlabel('Time(s)','FontSize', 14, 'FontWeight','bold')
+legend('Value','Stopped','FontSize', 50, 'FontWeight','bold')
+grid on
+ax = gca;
+ax.GridColor = [0 0 0];
+ax.GridLineStyle = '-';
+ax.GridAlpha = 0.5;

@@ -41,7 +41,7 @@ void CustomController::loadNetwork()
     {
         cur_path = "/home/dyros/catkin_ws/src/tocabi_cc/";
     }
-    std::ifstream file[8];
+    std::ifstream file[14];
     file[0].open(cur_path+"weight/mlp_extractor_policy_net_0_weight.txt", std::ios::in);
     file[1].open(cur_path+"weight/mlp_extractor_policy_net_0_bias.txt", std::ios::in);
     file[2].open(cur_path+"weight/mlp_extractor_policy_net_2_weight.txt", std::ios::in);
@@ -50,6 +50,12 @@ void CustomController::loadNetwork()
     file[5].open(cur_path+"weight/action_net_bias.txt", std::ios::in);
     file[6].open(cur_path+"weight/obs_mean_fixed.txt", std::ios::in);
     file[7].open(cur_path+"weight/obs_variance_fixed.txt", std::ios::in);
+    file[8].open(cur_path+"weight/mlp_extractor_value_net_0_weight.txt", std::ios::in);
+    file[9].open(cur_path+"weight/mlp_extractor_value_net_0_bias.txt", std::ios::in);
+    file[10].open(cur_path+"weight/mlp_extractor_value_net_2_weight.txt", std::ios::in);
+    file[11].open(cur_path+"weight/mlp_extractor_value_net_2_bias.txt", std::ios::in);
+    file[12].open(cur_path+"weight/value_net_weight.txt", std::ios::in);
+    file[13].open(cur_path+"weight/value_net_bias.txt", std::ios::in);
 
 
     if(!file[0].is_open())
@@ -187,6 +193,102 @@ void CustomController::loadNetwork()
             }
         }
     }
+    row = 0;
+    col = 0;
+    while(!file[8].eof() && row != value_net_w0_.rows())
+    {
+        file[8] >> temp;
+        if(temp != '\n')
+        {
+            value_net_w0_(row, col) = temp;
+            col ++;
+            if (col == value_net_w0_.cols())
+            {
+                col = 0;
+                row ++;
+            }
+        }
+    }
+    row = 0;
+    col = 0;
+    while(!file[9].eof() && row != value_net_b0_.rows())
+    {
+        file[9] >> temp;
+        if(temp != '\n')
+        {
+            value_net_b0_(row, col) = temp;
+            col ++;
+            if (col == value_net_b0_.cols())
+            {
+                col = 0;
+                row ++;
+            }
+        }
+    }
+    row = 0;
+    col = 0;
+    while(!file[10].eof() && row != value_net_w2_.rows())
+    {
+        file[10] >> temp;
+        if(temp != '\n')
+        {
+            value_net_w2_(row, col) = temp;
+            col ++;
+            if (col == value_net_w2_.cols())
+            {
+                col = 0;
+                row ++;
+            }
+        }
+    }
+    row = 0;
+    col = 0;
+    while(!file[11].eof() && row != value_net_b2_.rows())
+    {
+        file[11] >> temp;
+        if(temp != '\n')
+        {
+            value_net_b2_(row, col) = temp;
+            col ++;
+            if (col == value_net_b2_.cols())
+            {
+                col = 0;
+                row ++;
+            }
+        }
+    }
+    row = 0;
+    col = 0;
+    while(!file[12].eof() && row != value_net_w_.rows())
+    {
+        file[12] >> temp;
+        if(temp != '\n')
+        {
+            value_net_w_(row, col) = temp;
+            col ++;
+            if (col == value_net_w_.cols())
+            {
+                col = 0;
+                row ++;
+            }
+        }
+    }
+    row = 0;
+    col = 0;
+    while(!file[13].eof() && row != value_net_b_.rows())
+    {
+        file[13] >> temp;
+        if(temp != '\n')
+        {
+            value_net_b_(row, col) = temp;
+            col ++;
+            if (col == value_net_b_.cols())
+            {
+                col = 0;
+                row ++;
+            }
+        }
+    }
 }
 
 void CustomController::initVariable()
@@ -200,6 +302,15 @@ void CustomController::initVariable()
     hidden_layer1_.resize(num_hidden, 1);
     hidden_layer2_.resize(num_hidden, 1);
     rl_action_.resize(num_action, 1);
+
+    value_net_w0_.resize(num_hidden, num_state);
+    value_net_b0_.resize(num_hidden, 1);
+    value_net_w2_.resize(num_hidden, num_hidden);
+    value_net_b2_.resize(num_hidden, 1);
+    value_net_w_.resize(1, num_hidden);
+    value_net_b_.resize(1, 1);
+    value_hidden_layer1_.resize(num_hidden, 1);
+    value_hidden_layer2_.resize(num_hidden, 1);
     
     state_cur_.resize(num_cur_state, 1);
     state_.resize(num_state, 1);
@@ -350,6 +461,12 @@ void CustomController::processObservation()
     state_cur_(data_idx) = 0.2;//target_vel_;
     data_idx++;
 
+    state_cur_(data_idx) = rd_cc_.LF_FT(2);//target_vel_;
+    data_idx++;
+
+    state_cur_(data_idx) = rd_cc_.RF_FT(2);//target_vel_;
+    data_idx++;
+
     state_buffer_.block(0, 0, num_cur_state*(num_state_skip*num_state_hist-1),1) = state_buffer_.block(num_cur_state, 0, num_cur_state*(num_state_skip*num_state_hist-1),1);
     state_buffer_.block(num_cur_state*(num_state_skip*num_state_hist-1), 0, num_cur_state,1) = state_cur_;
 
@@ -382,6 +499,22 @@ void CustomController::feedforwardPolicy()
     }
 
     rl_action_ = action_net_w_ * hidden_layer2_ + action_net_b_;
+
+    value_hidden_layer1_ = value_net_w0_ * state_normalize_ + value_net_b0_;
+    for (int i = 0; i < num_hidden; i++) 
+    {
+        if (value_hidden_layer1_(i) < 0)
+            value_hidden_layer1_(i) = 0.0;
+    }
+
+    value_hidden_layer2_ = value_net_w2_ * value_hidden_layer1_ + value_net_b2_;
+    for (int i = 0; i < num_hidden; i++) 
+    {
+        if (value_hidden_layer2_(i) < 0)
+            value_hidden_layer2_(i) = 0.0;
+    }
+
+    value_ = (value_net_w_ * value_hidden_layer2_ + value_net_b_)(0);
     
 }
 
@@ -442,6 +575,17 @@ void CustomController::computeSlow()
         {
              rd_.torque_desired = torque_rl_;
         }
+
+        if (value_ < 50.0)
+        {
+            if (stop_by_value_thres_ == false)
+            {
+                stop_by_value_thres_ = true;
+                stop_start_time_ = rd_cc_.control_time_us_;
+                q_stop_ = q_noise_;
+            }
+            rd_.torque_desired = kp_ * (q_stop_ - q_noise_) - kv_*q_vel_noise_;
+        }
         if (is_write_file_)
         {
             if ((rd_cc_.control_time_us_ - time_write_pre_)/1e6 > 1/240.0)
@@ -460,6 +604,8 @@ void CustomController::computeSlow()
                 writeFile << q_dot_lpf_.transpose() << "\t";
                 writeFile << rd_cc_.q_dot_virtual_.transpose() << "\t";
                 writeFile << rd_cc_.q_virtual_.transpose() << "\t";
+
+                writeFile << value_ << "\t" << stop_by_value_thres_;
                
                 writeFile << std::endl;
 
