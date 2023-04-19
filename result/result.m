@@ -28,7 +28,8 @@ hold on
 plot(d3(:,1),d3(:,12))
 
 %% Value Function
-d = load('data_stop_by_value_function.csv');
+clear d
+d = load('data.csv');
 yyaxis left
 plot(d(:,1),d(:,206), 'LineWidth', 7)
 ylabel('Value','FontSize', 40, 'FontWeight','bold')

@@ -467,6 +467,12 @@ void CustomController::processObservation()
     state_cur_(data_idx) = rd_cc_.RF_FT(2);//target_vel_;
     data_idx++;
 
+    state_cur_(data_idx) = rd_cc_.LF_FT(3);//target_vel_;
+    data_idx++;
+
+    state_cur_(data_idx) = rd_cc_.RF_FT(3);//target_vel_;
+    data_idx++;
+
     state_buffer_.block(0, 0, num_cur_state*(num_state_skip*num_state_hist-1),1) = state_buffer_.block(num_cur_state, 0, num_cur_state*(num_state_skip*num_state_hist-1),1);
     state_buffer_.block(num_cur_state*(num_state_skip*num_state_hist-1), 0, num_cur_state,1) = state_cur_;
 
@@ -576,14 +582,18 @@ void CustomController::computeSlow()
              rd_.torque_desired = torque_rl_;
         }
 
-        if (value_ < 50.0)
+        if (value_ < 0.0)
         {
             if (stop_by_value_thres_ == false)
             {
                 stop_by_value_thres_ = true;
                 stop_start_time_ = rd_cc_.control_time_us_;
                 q_stop_ = q_noise_;
+                std::cout << "Stop by Value Function" << std::endl;
             }
+        }
+        if (stop_by_value_thres_)
+        {
             rd_.torque_desired = kp_ * (q_stop_ - q_noise_) - kv_*q_vel_noise_;
         }
         if (is_write_file_)
