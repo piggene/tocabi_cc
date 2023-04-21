@@ -47,3 +47,9 @@ ax = gca;
 ax.GridColor = [0 0 0];
 ax.GridLineStyle = '-';
 ax.GridAlpha = 0.5;
+
+figure()
+plot(d(:,167))
+
+figure()
+plot(d(:,[6,12]),'DisplayName','d(:,[6,12])')

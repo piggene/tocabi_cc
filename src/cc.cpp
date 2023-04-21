@@ -461,17 +461,14 @@ void CustomController::processObservation()
     state_cur_(data_idx) = 0.2;//target_vel_;
     data_idx++;
 
-    state_cur_(data_idx) = rd_cc_.LF_FT(2);//target_vel_;
+    state_cur_(data_idx) = 0.0;
     data_idx++;
 
-    state_cur_(data_idx) = rd_cc_.RF_FT(2);//target_vel_;
+    state_cur_(data_idx) = rd_cc_.LF_FT(2);
     data_idx++;
 
-    // state_cur_(data_idx) = rd_cc_.LF_FT(3);//target_vel_;
-    // data_idx++;
-
-    // state_cur_(data_idx) = rd_cc_.RF_FT(3);//target_vel_;
-    // data_idx++;
+    state_cur_(data_idx) = rd_cc_.RF_FT(2);
+    data_idx++;
 
     state_buffer_.block(0, 0, num_cur_state*(num_state_skip*num_state_hist-1),1) = state_buffer_.block(num_cur_state, 0, num_cur_state*(num_state_skip*num_state_hist-1),1);
     state_buffer_.block(num_cur_state*(num_state_skip*num_state_hist-1), 0, num_cur_state,1) = state_cur_;
