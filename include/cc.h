@@ -58,7 +58,7 @@ public:
     Eigen::MatrixXd value_hidden_layer2_;
     double value_;
 
-    bool stop_by_value_thres_;
+    bool stop_by_value_thres_ = false;
     Eigen::Matrix<double, MODEL_DOF, 1> q_stop_;
     float stop_start_time_;
     
@@ -106,7 +106,8 @@ public:
     void joyCallback(const sensor_msgs::Joy::ConstPtr& joy);
     ros::Subscriber joy_sub_;
 
-    double target_vel_ = 0.0;
+    double target_vel_x_ = 0.0;
+    double target_vel_y_ = 0.0;
 
 private:
     Eigen::VectorQd ControlVal_;
