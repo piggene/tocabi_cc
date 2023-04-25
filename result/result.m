@@ -53,3 +53,18 @@ plot(d(:,167))
 
 figure()
 plot(d(:,[6,12]),'DisplayName','d(:,[6,12])')
+%%
+figure()
+for i=1:12
+    subplot(2,6,i)
+    plot(d(1:1000,1),d(1:1000,132+i))
+    hold on
+    plot(d2(1:1000,1),d2(1:1000,132+i))
+end
+
+figure()
+plot(d(1:1000,1),d(1:1000,6))
+hold on
+plot(d(1:1000,1),d(1:1000,12))
+plot(d2(1:1000,1),d2(1:1000,6))
+plot(d2(1:1000,1),d2(1:1000,12))
