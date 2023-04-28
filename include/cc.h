@@ -30,9 +30,9 @@ public:
     void initVariable();
     Eigen::Vector3d mat2euler(Eigen::Matrix3d mat);
 
-    static const int num_cur_state = 33;
-    static const int num_state_skip = 1;
-    static const int num_state_hist = 1;
+    static const int num_cur_state = 46;
+    static const int num_state_skip = 5;
+    static const int num_state_hist = 5;
     static const int num_state = num_cur_state*num_state_hist;
     static const int num_hidden = 256;
     static const int num_action = 13;
@@ -65,7 +65,6 @@ public:
     Eigen::MatrixXd state_;
     Eigen::MatrixXd state_cur_;
     Eigen::MatrixXd state_buffer_;
-    Eigen::MatrixXd state_normalize_;
     Eigen::MatrixXd state_mean_;
     Eigen::MatrixXd state_var_;
 
