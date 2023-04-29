@@ -546,6 +546,7 @@ void CustomController::computeSlow()
             std::cout<<"cc mode 7"<<std::endl;
             torque_init_ = rd_cc_.torque_desired;
 
+            processNoise();
             processObservation();
             for (int i = 0; i < num_state_skip*num_state_hist; i++) 
             {
