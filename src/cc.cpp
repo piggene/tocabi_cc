@@ -441,11 +441,11 @@ void CustomController::processObservation()
     {
         if (is_on_robot_)
         {
-            state_cur_(data_idx) = q_dot_lpf_(i);
+            state_cur_(data_idx) = q_vel_noise_(i);
         }
         else
         {
-            state_cur_(data_idx) = q_dot_lpf_(i); //rd_cc_.q_dot_virtual_(i+6); //q_vel_noise_(i);
+            state_cur_(data_idx) = q_vel_noise_(i); //rd_cc_.q_dot_virtual_(i+6); //q_dot_lpf_(i);
         }
         data_idx++;
     }
@@ -588,7 +588,7 @@ void CustomController::computeSlow()
              rd_.torque_desired = torque_rl_;
         }
 
-        if (value_ < 100.0)
+        if (value_ < 0.0)
         {
             if (stop_by_value_thres_ == false)
             {
