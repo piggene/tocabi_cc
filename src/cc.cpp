@@ -14,7 +14,7 @@ CustomController::CustomController(RobotData &rd) : rd_(rd) //, wbc_(dc.wbc_)
         }
         else
         {
-            writeFile.open("/home/kim/tocabi_ws/src/tocabi_cc/result/data.csv", std::ofstream::out | std::ofstream::app);
+            writeFile.open("/home/dyros/catkin_ws/src/tocabi_cc/result/data.csv", std::ofstream::out | std::ofstream::app);
         }
         writeFile << std::fixed << std::setprecision(8);
     }
@@ -35,27 +35,44 @@ void CustomController::loadNetwork()
     rl_action_.setZero();
 
 
-    string cur_path = "/home/kim/tocabi_ws/src/tocabi_cc/";
+    string cur_path = "/home/dyros/catkin_ws/src/tocabi_cc/";
 
     if (is_on_robot_)
     {
         cur_path = "/home/dyros/catkin_ws/src/tocabi_cc/";
     }
     std::ifstream file[14];
-    file[0].open(cur_path+"weight/mlp_extractor_policy_net_0_weight.txt", std::ios::in);
-    file[1].open(cur_path+"weight/mlp_extractor_policy_net_0_bias.txt", std::ios::in);
-    file[2].open(cur_path+"weight/mlp_extractor_policy_net_2_weight.txt", std::ios::in);
-    file[3].open(cur_path+"weight/mlp_extractor_policy_net_2_bias.txt", std::ios::in);
-    file[4].open(cur_path+"weight/action_net_weight.txt", std::ios::in);
-    file[5].open(cur_path+"weight/action_net_bias.txt", std::ios::in);
-    file[6].open(cur_path+"weight/obs_mean_fixed.txt", std::ios::in);
-    file[7].open(cur_path+"weight/obs_variance_fixed.txt", std::ios::in);
-    file[8].open(cur_path+"weight/mlp_extractor_value_net_0_weight.txt", std::ios::in);
-    file[9].open(cur_path+"weight/mlp_extractor_value_net_0_bias.txt", std::ios::in);
-    file[10].open(cur_path+"weight/mlp_extractor_value_net_2_weight.txt", std::ios::in);
-    file[11].open(cur_path+"weight/mlp_extractor_value_net_2_bias.txt", std::ios::in);
-    file[12].open(cur_path+"weight/value_net_weight.txt", std::ios::in);
-    file[13].open(cur_path+"weight/value_net_bias.txt", std::ios::in);
+    // file[0].open(cur_path+"weight/mlp_extractor_policy_net_0_weight.txt", std::ios::in);
+    // file[1].open(cur_path+"weight/mlp_extractor_policy_net_0_bias.txt", std::ios::in);
+    // file[2].open(cur_path+"weight/mlp_extractor_policy_net_2_weight.txt", std::ios::in);
+    // file[3].open(cur_path+"weight/mlp_extractor_policy_net_2_bias.txt", std::ios::in);
+    // file[4].open(cur_path+"weight/action_net_weight.txt", std::ios::in);
+    // file[5].open(cur_path+"weight/action_net_bias.txt", std::ios::in);
+    // file[6].open(cur_path+"weight/obs_mean_fixed.txt", std::ios::in);
+    // file[7].open(cur_path+"weight/obs_variance_fixed.txt", std::ios::in);
+    // file[8].open(cur_path+"weight/mlp_extractor_value_net_0_weight.txt", std::ios::in);
+    // file[9].open(cur_path+"weight/mlp_extractor_value_net_0_bias.txt", std::ios::in);
+    // file[10].open(cur_path+"weight/mlp_extractor_value_net_2_weight.txt", std::ios::in);
+    // file[11].open(cur_path+"weight/mlp_extractor_value_net_2_bias.txt", std::ios::in);
+    // file[12].open(cur_path+"weight/value_net_weight.txt", std::ios::in);
+    // file[13].open(cur_path+"weight/value_net_bias.txt", std::ios::in);
+
+    string RunVersion = "Dynamic_3";
+
+    file[0].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_actor_mlp_0_weight.txt", std::ios::in);
+    file[1].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_actor_mlp_0_bias.txt", std::ios::in);
+    file[2].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_actor_mlp_2_weight.txt", std::ios::in);
+    file[3].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_actor_mlp_2_bias.txt", std::ios::in);
+    file[4].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_mu_weight.txt", std::ios::in);
+    file[5].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_mu_bias.txt", std::ios::in);
+    file[6].open(cur_path+"isaac_weight/"+RunVersion+"/obs_mean_fixed.txt", std::ios::in);
+    file[7].open(cur_path+"isaac_weight/"+RunVersion+"/obs_variance_fixed.txt", std::ios::in);
+    file[8].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_critic_mlp_0_weight.txt", std::ios::in);
+    file[9].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_critic_mlp_0_bias.txt", std::ios::in);
+    file[10].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_critic_mlp_2_weight.txt", std::ios::in);
+    file[11].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_critic_mlp_2_bias.txt", std::ios::in);
+    file[12].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_value_weight.txt", std::ios::in);
+    file[13].open(cur_path+"isaac_weight/"+RunVersion+"/a2c_network_value_bias.txt", std::ios::in);
 
 
     if(!file[0].is_open())
@@ -441,11 +458,11 @@ void CustomController::processObservation()
     {
         if (is_on_robot_)
         {
-            state_cur_(data_idx) = q_dot_lpf_(i);
+            state_cur_(data_idx) = q_vel_noise_(i);
         }
         else
         {
-            state_cur_(data_idx) = q_dot_lpf_(i); //rd_cc_.q_dot_virtual_(i+6); //q_vel_noise_(i);
+            state_cur_(data_idx) = q_vel_noise_(i);
         }
         data_idx++;
     }
@@ -480,16 +497,25 @@ void CustomController::processObservation()
     state_buffer_.block(0, 0, num_cur_state*(num_state_skip*num_state_hist-1),1) = state_buffer_.block(num_cur_state, 0, num_cur_state*(num_state_skip*num_state_hist-1),1);
     state_buffer_.block(num_cur_state*(num_state_skip*num_state_hist-1), 0, num_cur_state,1) = (state_cur_ - state_mean_).array() / state_var_.cwiseSqrt().array();
 
-    // Internal State First
-    for (int i = 0; i < num_state_hist; i++)
-    {
-        state_.block(num_cur_internal_state*i, 0, num_cur_internal_state, 1) = state_buffer_.block(num_cur_state*(num_state_skip*(i+1)-1), 0, num_cur_internal_state, 1);
-    }
-    // Action History Second
+
+
+    state_.block(0,0,num_cur_internal_state,1) = state_buffer_.block(num_cur_state*(num_state_skip*num_state_hist-1), 0, num_cur_internal_state,1);
     for (int i = 0; i < num_state_hist-1; i++)
     {
-        state_.block(num_state_hist*num_cur_internal_state + num_action*i, 0, num_action, 1) = state_buffer_.block(num_cur_state*(num_state_skip*(i+1)) + num_cur_internal_state, 0, num_action, 1);
+        state_.block(num_cur_state*(num_state_hist-1-i),0, num_cur_internal_state, 1) = state_buffer_.block(num_cur_state*(num_state_skip*(i+1)-1), 0, num_cur_internal_state, 1);
+        state_.block(num_cur_internal_state + num_cur_state*(num_state_hist-2-i), 0, num_action, 1) = state_buffer_.block(num_cur_state*(num_state_skip*(i+1)) + num_cur_internal_state, 0, num_action, 1);
     }
+    
+    // // Internal State First
+    // for (int i = 0; i < num_state_hist; i++)
+    // {
+    //     state_.block(num_cur_internal_state*i, 0, num_cur_internal_state, 1) = state_buffer_.block(num_cur_state*(num_state_skip*(i+1)-1), 0, num_cur_internal_state, 1);
+    // }
+    // // Action History Second
+    // for (int i = 0; i < num_state_hist-1; i++)
+    // {
+    //     state_.block(num_state_hist*num_cur_internal_state + num_action*i, 0, num_action, 1) = state_buffer_.block(num_cur_state*(num_state_skip*(i+1)) + num_cur_internal_state, 0, num_action, 1);
+    // }
 
 }
 
